@@ -1,18 +1,19 @@
 <?php
-    // 세션 시작
-    if (session_status() == PHP_SESSION_NONE) {
-        session_start();
-    }
+// 작성자: 조혜림
+// 세션 시작
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 
-    // 현재 페이지 확인
-    $current_page = basename($_SERVER['PHP_SELF']);
-    
-    // 로그인 여부 확인
-    $is_logged_in = isset($_SESSION['user_id']);
-    
-    function nav_active(string $page, string $current_page): string{
-        return $page == $current_page ? 'active' : '';
-    }
+// 현재 페이지 확인
+$current_page = basename($_SERVER['PHP_SELF']);
+
+// 로그인 여부 확인
+$is_logged_in = isset($_SESSION['user_id']);
+
+function nav_active(string $page, string $current_page): string{
+    return $page == $current_page ? 'active' : '';
+}
 
 ?>
 

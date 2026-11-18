@@ -1,6 +1,7 @@
 <?php
-    // 네비게이션
-    require_once 'header.php';
+// 작성자: 조혜림
+// 네비게이션
+require_once 'header.php';
 ?>
 
 <!-- 메인 제목 -->

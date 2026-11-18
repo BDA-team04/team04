@@ -1,5 +1,6 @@
 <?php
-    require_once 'header.php';
+// 작성자: 조혜림
+require_once 'header.php';
 ?>
 
 <!-- 메인 제목 -->
