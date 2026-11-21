@@ -179,8 +179,8 @@ body {
 .data-sources {
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    margin-bottom: 25px;
+    gap: 30px;
+    margin-bottom: 50px;
 }
 
 /* 데이터 소스 제목 & 이미지 */
@@ -293,7 +293,7 @@ body {
 
 .team-name {
     font-size: 25px;
-    margin-bottom: 8px;
+    margin-bottom: 20px;
     margin-left: 6px;
 }
 
