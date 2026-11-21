@@ -73,13 +73,6 @@ require_once 'header.php';
                 </p>
             </div>
 
-            <div class="source-row">
-                <span class="source-label">Kaggle</span>
-                <p>Historical KBO data
-                    <br>
-                    - Additional historical game records
-                </p>
-            </div>
         </section>
 
         <!-- 팀 정보 -->
