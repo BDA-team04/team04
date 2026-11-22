@@ -37,7 +37,6 @@ require_once 'header.php';
         </div>
 
         <!-- CRUD 분석 카드 -->
-        <?php // 수정: 정윤아 - CRUD 카드를 경기 관리 페이지(game_manage.php)로 연결 ?>
         <a href="game_manage.php" class="crud-card">
             <div>
                 <h2>CRUD</h2>
