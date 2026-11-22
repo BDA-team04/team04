@@ -193,4 +193,4 @@ source sql/dbcreate.sql;
 source sql/dbinsert.sql;
 ```
 
-`dbcreate.sql` 이 아직 없으면 개발용 `sql/dev_sample.sql` 로 테스트할 수 있습니다 (제출용 아님).
+`dbinsert.sql` 이 아직 없으면 `dbcreate.sql` 실행 후 개발용 `sql/dev_sample.sql` 로 샘플 데이터를 넣어 테스트할 수 있습니다 (제출용 아님, 기존 데이터를 지우고 다시 채움).

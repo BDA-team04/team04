@@ -1,9 +1,9 @@
 -- 작성자: 정윤아
 -- ============================================================
--- [제출용 아님] 백엔드 로컬 개발용 임시 스키마 + 샘플 데이터
--- - dbcreate.sql / dbinsert.sql 이 나오기 전까지 테스트용으로만 쓴다.
---  - 최종 스키마는 dbcreate.sql 을 따른다. 이 파일은 제출 전에 삭제한다.
---  - 실행하면 기존 테이블을 지우고 다시 만든다.
+-- [제출용 아님] 백엔드 로컬 개발용 샘플 데이터 (데이터만, 테이블 생성 없음)
+--  - 테이블은 dbcreate.sql 로 먼저 만든 뒤 이 파일을 실행한다.
+--  - dbinsert.sql 이 나오기 전까지 테스트용으로만 쓴다. 제출 전에 삭제한다.
+--  - 실행하면 기존 데이터(users 포함)를 모두 지우고 샘플로 다시 채운다.
 --  - 숫자(점수·날씨 등)는 실제 기록이 아닌 가상 값이다.
 -- 실행: mysql -u team04 -p team04 < sql/dev_sample.sql
 -- ============================================================
@@ -11,95 +11,26 @@
 USE team04;
 SET NAMES utf8mb4;
 
-DROP TABLE IF EXISTS team_game_stats;
-DROP TABLE IF EXISTS game;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS weather;
-DROP TABLE IF EXISTS team;
-DROP TABLE IF EXISTS stadium;
-
--- ---------- 임시 스키마 (요청한 변경사항 반영 기준) ----------
-
-CREATE TABLE stadium (
-    stadium_id      INT AUTO_INCREMENT PRIMARY KEY,
-    stadium_name    VARCHAR(50) NOT NULL UNIQUE,
-    city            VARCHAR(20) NOT NULL,
-    asos_station_id INT,
-    is_dome         TINYINT(1) NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE team (
-    team_id    INT AUTO_INCREMENT PRIMARY KEY,
-    team_name  VARCHAR(50) NOT NULL UNIQUE,
-    short_name VARCHAR(20) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE weather (
-    weather_id       INT AUTO_INCREMENT PRIMARY KEY,
-    city             VARCHAR(20) NOT NULL,
-    obs_date         DATE NOT NULL,
-    asos_station_id  INT,
-    avg_temp_c       DECIMAL(4,1),
-    max_temp_c       DECIMAL(4,1),
-    precipitation_mm DECIMAL(6,1),
-    avg_wind_ms      DECIMAL(4,1),
-    avg_humidity_pct DECIMAL(4,1),
-    UNIQUE KEY uq_weather_city_date (city, obs_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE game (
-    game_id      INT AUTO_INCREMENT PRIMARY KEY,
-    kbo_game_id  VARCHAR(30) UNIQUE,
-    game_date    DATE NOT NULL,
-    stadium_id   INT NOT NULL,
-    home_team_id INT NOT NULL,
-    away_team_id INT NOT NULL,
-    game_no      TINYINT NOT NULL DEFAULT 1,
-    game_status  ENUM('scheduled','completed','cancelled','postponed') NOT NULL DEFAULT 'scheduled',
-    start_time   TIME,
-    UNIQUE KEY uq_game (game_date, stadium_id, home_team_id, away_team_id, game_no),
-    CONSTRAINT chk_game_teams CHECK (home_team_id <> away_team_id),
-    FOREIGN KEY (stadium_id)   REFERENCES stadium(stadium_id),
-    FOREIGN KEY (home_team_id) REFERENCES team(team_id),
-    FOREIGN KEY (away_team_id) REFERENCES team(team_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE team_game_stats (
-    stats_id INT AUTO_INCREMENT PRIMARY KEY,
-    game_id  INT NOT NULL,
-    team_id  INT NOT NULL,
-    is_home  TINYINT(1) NOT NULL,
-    runs     SMALLINT NOT NULL,
-    hits     SMALLINT NOT NULL,
-    errors   SMALLINT,
-    walks    SMALLINT,
-    result   ENUM('W','L','D'),
-    UNIQUE KEY uq_stats_game_team (game_id, team_id),
-    FOREIGN KEY (game_id) REFERENCES game(game_id),
-    FOREIGN KEY (team_id) REFERENCES team(team_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE users (
-    user_id          INT AUTO_INCREMENT PRIMARY KEY,
-    username         VARCHAR(30) NOT NULL UNIQUE,
-    password_hash    VARCHAR(255) NOT NULL,
-    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    favorite_team_id INT NULL,
-    FOREIGN KEY (favorite_team_id) REFERENCES team(team_id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 기존 데이터 비우기 (자식 테이블 → 부모 테이블 순서)
+DELETE FROM team_game_stats;
+DELETE FROM game;
+DELETE FROM users;
+DELETE FROM weather;
+DELETE FROM team;
+DELETE FROM stadium;
 
 -- ---------- 샘플 데이터 ----------
 
 INSERT INTO stadium (stadium_id, stadium_name, city, asos_station_id, is_dome) VALUES
-(1, '잠실야구장',            '서울', 108, 0),
-(2, '고척스카이돔',          '서울', 108, 1),
-(3, '인천SSG랜더스필드',     '인천', 112, 0),
-(4, '수원KT위즈파크',        '수원', 119, 0),
-(5, '대전한화생명볼파크',    '대전', 133, 0),
-(6, '대구삼성라이온즈파크',  '대구', 143, 0),
-(7, '광주기아챔피언스필드',  '광주', 156, 0),
-(8, '사직야구장',            '부산', 159, 0),
-(9, '창원NC파크',            '창원', 155, 0);
+(1, '잠실야구장',            '서울', '108', 0),
+(2, '고척스카이돔',          '서울', '108', 1),
+(3, '인천SSG랜더스필드',     '인천', '112', 0),
+(4, '수원KT위즈파크',        '수원', '119', 0),
+(5, '대전한화생명볼파크',    '대전', '133', 0),
+(6, '대구삼성라이온즈파크',  '대구', '143', 0),
+(7, '광주기아챔피언스필드',  '광주', '156', 0),
+(8, '사직야구장',            '부산', '159', 0),
+(9, '창원NC파크',            '창원', '155', 0);
 
 INSERT INTO team (team_id, team_name, short_name) VALUES
 (1,  'LG 트윈스',     'LG'),
@@ -115,14 +46,14 @@ INSERT INTO team (team_id, team_name, short_name) VALUES
 
 -- 7/14~7/15 날씨 (창원 7/15 는 일부러 비워 둠 → "날씨 데이터 없음" 경고 테스트용)
 INSERT INTO weather (city, obs_date, asos_station_id, avg_temp_c, max_temp_c, precipitation_mm, avg_wind_ms, avg_humidity_pct) VALUES
-('서울', '2026-07-14', 108, 28.4, 33.1,  0.0, 2.1, 68.0),
-('인천', '2026-07-14', 112, 26.9, 30.2,  0.0, 3.4, 74.5),
-('대구', '2026-07-14', 143, 30.2, 36.0,  0.0, 1.8, 58.3),
-('광주', '2026-07-14', 156, 28.8, 34.2,  2.5, 1.9, 77.0),
-('부산', '2026-07-14', 159, 27.1, 30.5,  0.0, 3.8, 79.2),
-('서울', '2026-07-15', 108, 25.3, 27.8, 42.5, 2.9, 88.1),
-('수원', '2026-07-15', 119, 25.0, 28.0, 35.0, 2.6, 86.4),
-('대전', '2026-07-15', 133, 27.6, 31.9,  8.0, 1.7, 80.2);
+('서울', '2026-07-14', '108', 28.4, 33.1,  0.0, 2.1, 68.0),
+('인천', '2026-07-14', '112', 26.9, 30.2,  0.0, 3.4, 74.5),
+('대구', '2026-07-14', '143', 30.2, 36.0,  0.0, 1.8, 58.3),
+('광주', '2026-07-14', '156', 28.8, 34.2,  2.5, 1.9, 77.0),
+('부산', '2026-07-14', '159', 27.1, 30.5,  0.0, 3.8, 79.2),
+('서울', '2026-07-15', '108', 25.3, 27.8, 42.5, 2.9, 88.1),
+('수원', '2026-07-15', '119', 25.0, 28.0, 35.0, 2.6, 86.4),
+('대전', '2026-07-15', '133', 27.6, 31.9,  8.0, 1.7, 80.2);
 
 INSERT INTO game (game_id, kbo_game_id, game_date, stadium_id, home_team_id, away_team_id, game_no, game_status, start_time) VALUES
 (1, '20260714LGOB0', '2026-07-14', 1, 1, 2,  1, 'completed', '18:30:00'),  -- 잠실 LG vs 두산
