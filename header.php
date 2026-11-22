@@ -53,8 +53,9 @@ function nav_active(string $page, string $current_page): string{
                     class="<?= nav_active('analysis_rank.php', $current_page) ?>">
                     Ranking
                 </a>
-                <a href="crud.php" 
-                    class="<?= nav_active('crud.php', $current_page) ?>">
+                <?php // 수정: 정윤아 - CRUD 메뉴를 경기 관리 페이지(game_manage.php)로 연결 ?>
+                <a href="game_manage.php"
+                    class="<?= nav_active('game_manage.php', $current_page) ?>">
                     CRUD
                 </a>
 
