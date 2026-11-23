@@ -6,23 +6,46 @@
 require_once 'session.php';
 require_once 'db.php';
 
-// 사용자 입력값 받기
-$window_size = filter_input(INPUT_GET, 'window_size', FILTER_VALIDATE_INT);
-$start_date = $_GET['start_date'] ?? '2020-05-05';
-$end_date = $_GET['end_date'] ?? '2026-10-12';
+// 로그인 사용자 정보
+$user = current_user();
+$favorite_team_id = isset($user['favorite_team_id'])
+    ? (int)$user['favorite_team_id']
+    : null;
 
-// team_id 직접 선택하면 적용
-if (isset($_GET['team_id'])) {
-    $team_id = filter_input(INPUT_GET, 'team_id', FILTER_VALIDATE_INT);
-} else {
-    // favorite_team_id 적용
-    $user = current_user();
-    $team_id = isset($user['favorite_team_id'])
-        ? (int)$user['favorite_team_id']
-        : null;
-}
+// 분석 조건 세션 키
+$page = 'analysis_window_' . ($user ? $user['user_id']: 'guest');
 
-// 경기 수는 5, 10, 15, 20 중 하나만 허용
+// 기본 분석 조건
+$default = [
+    'team_id' => $favorite_team_id,
+    'window_size' => 5,
+    'start_date' => '2020-05-05',
+    'end_date' => '2026-10-12'
+];
+
+// Analyze 버튼을 눌렀는지 확인
+$is_submit = isset($_GET['submit']);
+
+// 제출 시 GET 값 사용, 아니면 세션에 저장된 조건 불러오기
+$filter = $is_submit
+    ? $_GET
+    : load_filter($page, $default);
+
+// 분석 조건 가져오기
+$team_id = filter_var(
+    $filter['team_id'] ?? null,
+    FILTER_VALIDATE_INT
+);
+
+$window_size = filter_var(
+    $filter['window_size'] ?? 5,
+    FILTER_VALIDATE_INT
+);
+
+$start_date = $filter['start_date'] ?? $default['start_date'];
+$end_date = $filter['end_date'] ?? $default['end_date'];
+
+// Window Size 검증
 if (!in_array($window_size, [5, 10, 15, 20], true)) {
     $window_size = 5;
 }
@@ -76,6 +99,16 @@ try {
 
     if (!in_array($team_id, $valid_ids, true)) {
         $team_id = $valid_ids[0] ?? null;
+    }
+
+    // Analyze 버튼을 누르면 검증된 조건을 세션에 저장
+    if ($is_submit) {
+        save_filter($page, [
+            'team_id' => $team_id,
+            'window_size' => $window_size,
+            'start_date' => $start_date,
+            'end_date' => $end_date
+        ]);
     }
 
     // 이동평균 SQL
@@ -153,6 +186,8 @@ try {
 require_once 'header.php';
 ?>
 
+<?php show_flash(); ?>
+
 <!-- 메인 제목 -->
 <section class="intro">
     <h1 class="title">Windowing</h1>
@@ -181,11 +216,7 @@ require_once 'header.php';
                             ? 'selected': '' ?>
                     >
 
-                        <?= htmlspecialchars(
-                            $team['team_name'],
-                            ENT_QUOTES,
-                            'UTF-8'
-                        ) ?>
+                        <?= h($team['team_name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -215,7 +246,7 @@ require_once 'header.php';
                     name="start_date"
                     min="2020-05-05"
                     max="2026-10-12"
-                    value="<?= htmlspecialchars($start_date) ?>"
+                    value="<?= h($start_date) ?>"
                     required>
                 <span>~</span>
                 <input
@@ -223,11 +254,15 @@ require_once 'header.php';
                     name="end_date"
                     min="2020-05-05"
                     max="2026-10-12"
-                    value="<?= htmlspecialchars($end_date) ?>"
+                    value="<?= h($end_date) ?>"
                     required>
             </div>
             <!-- 분석 버튼 -->
-            <button type="submit" class="analysis-page-submit">Analyze</button>
+            <button 
+                type="submit"
+                name="submit"
+                value="1"
+                class="analysis-page-submit">Analyze</button>
         </form>
     </div>
 
@@ -237,7 +272,7 @@ require_once 'header.php';
 
         <?php if ($error): ?>
             <p class="analysis-page-message">
-                <?= htmlspecialchars($error) ?>
+                <?= h($error) ?>
             </p>
         <?php elseif (empty($results)): ?>
             <p class="analysis-page-message">
@@ -271,19 +306,11 @@ require_once 'header.php';
                         <?php foreach ($results as $row): ?>
                             <tr>
                                 <td>
-                                    <?= htmlspecialchars(
-                                        $row['game_date'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>
+                                    <?= h($row['game_date']) ?>
                                 </td>
                                 
                                 <td>
-                                    <?= htmlspecialchars(
-                                        $row['opponent_name'],
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>
+                                    <?= h($row['opponent_name']) ?>
                                 </td>
 
                                 <td>
