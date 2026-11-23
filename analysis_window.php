@@ -343,7 +343,7 @@ require_once 'header.php';
 <?php if (!$error && !empty($results)): ?>
 
 <!-- Chart.js 라이브러리 -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/chart.umd.min.js"></script>
 <script>
     const gameData = <?= json_encode(
         $results,
