@@ -166,8 +166,21 @@ try {
 
 ### 시연: 트랜잭션 롤백 보여주기
 
-(3단계 경기 입력 페이지 완성 후 구체적인 순서를 채울 예정)
-아이디어: 이미 있는 경기와 같은 날짜·구장·홈·원정·더블헤더 번호로 다시 입력 → `game` UNIQUE 위반 → 전체 롤백 → `team_game_stats` 도 늘어나지 않은 것을 확인.
+`game_form.php` 의 수정(UPDATE) 저장 순서는 **① 기존 기록 DELETE → ② game UPDATE → ③ 기록 2행 INSERT** 입니다.
+②에서 실패하게 만들면 이미 실행된 ①(기록 삭제)까지 되돌아가는 것을 화면으로 보여줄 수 있습니다.
+(`sql/dev_sample.sql` 샘플 데이터 기준)
+
+1. 로그인 → Game Data(`game_manage.php`) 에서 2026-07-14 경기 두 개를 확인
+   - #1 잠실 LG 5 : 3 두산 (completed)
+   - #2 고척 키움 2 : 4 SSG (completed)
+2. #2 의 **Edit** → 구장을 *잠실야구장*, 홈팀을 *LG 트윈스*, 원정팀을 *두산 베어스* 로 바꾸고 저장
+   (날짜·더블헤더 번호는 그대로 → #1 과 완전히 같은 경기가 됨)
+3. 화면에 *"The same game … already exists. Nothing was saved (rolled back)."* 오류
+   - 내부: ① #2 기록 2행 DELETE 성공 → ② UPDATE 가 UNIQUE(`uq_game_identity`) 위반 → `rollback()`
+4. 목록으로 돌아가면 #2 가 **여전히 키움 2 : 4 SSG** 로 남아 있음 → ①의 삭제도 취소된 것 확인
+   (phpMyAdmin 에서 `SELECT * FROM team_game_stats WHERE game_id = 2;` 로 2행 그대로인 것도 보여줄 수 있음)
+
+비교용: 트랜잭션이 없었다면 ①이 이미 반영돼 #2 의 점수가 사라진(`-`) 상태로 남았을 것.
 
 ---
 
