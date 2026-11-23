@@ -8,6 +8,9 @@ require_once 'db.php';
 
 // 사용자 입력값 받기
 $window_size = filter_input(INPUT_GET, 'window_size', FILTER_VALIDATE_INT);
+$start_date = $_GET['start_date'] ?? '2020-05-05';
+$end_date = $_GET['end_date'] ?? '2026-10-12';
+
 // team_id 직접 선택하면 적용
 if (isset($_GET['team_id'])) {
     $team_id = filter_input(INPUT_GET, 'team_id', FILTER_VALIDATE_INT);
@@ -22,6 +25,32 @@ if (isset($_GET['team_id'])) {
 // 경기 수는 5, 10, 15, 20 중 하나만 허용
 if (!in_array($window_size, [5, 10, 15, 20], true)) {
     $window_size = 5;
+}
+
+// 기간 선택 (2020~2026)
+function validAnalysisDate($date) {
+    if (!is_string($date)) {
+        return false;
+    }
+
+    $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+
+    return $parsed !== false
+        && $parsed->format('Y-m-d') === $date
+        && $date >= '2020-05-05'
+        && $date <= '2026-10-12';
+}
+
+if (!validAnalysisDate($start_date)) {
+    $start_date = '2020-05-05';
+}
+
+if (!validAnalysisDate($end_date)) {
+    $end_date = '2026-10-12';
+}
+
+if ($start_date > $end_date) {
+    [$start_date, $end_date] = [$end_date, $start_date];
 }
 
 // SQL의 이전 경기 수
@@ -52,29 +81,32 @@ try {
     // 이동평균 SQL
     if ($team_id !== null) {
         $sql = "
+            wITH window_data AS (
             SELECT
                 g.game_id,
                 g.game_date,
+                g.game_no,
+                s.team_id,
                 s.runs,
                 w.avg_temp_c,
+
+                opponent.team_name As opponent_name,
                 
                 ROUND(
                     AVG(s.runs) OVER (
                         PARTITION BY s.team_id, YEAR(g.game_date)
-                        ORDER BY g.game_date, g.game_id
+                        ORDER BY g.game_date, g.game_no, g.game_id
                         ROWS BETWEEN
-                            $preceding PRECEDING
-                            AND CURRENT ROW
+                            $preceding PRECEDING AND CURRENT ROW
                     ), 2
                 ) As moving_avg_runs,
 
                 ROUND(
                     AVG(w.avg_temp_c) OVER (
                         PARTITION BY s.team_id, YEAR(g.game_date)
-                        ORDER BY g.game_date, g.game_id
+                        ORDER BY g.game_date, g.game_no, g.game_id
                         ROWS BETWEEN
-                            $preceding PRECEDING
-                            AND CURRENT ROW
+                            $preceding PRECEDING AND CURRENT ROW
                     ), 2
                 ) AS moving_avg_temp
             
@@ -90,14 +122,27 @@ try {
                 ON st.city = w.city
                 AND g.game_date = w.obs_date
             
+            JOIN team AS opponent
+                ON opponent.team_id =
+                    CASE
+                        WHEN s.team_id = g.home_team_id
+                            THEN g.away_team_id
+                        ELSE g.home_team_id
+                    END
+            
             WHERE g.game_status = 'completed'
                 AND s.team_id = ?
             
-            ORDER BY g.game_date, g.game_id
+            )
+
+            SELECT *
+            FROM window_data
+            WHERE game_date BETWEEN ? AND ?
+            ORDER BY game_date, game_no, game_id
         ";
 
         // SQL 실행
-        $results = db_query($sql, 'i', [$team_id]);
+        $results = db_query($sql, 'iss', [$team_id, $start_date, $end_date]);
     }
 } catch (mysqli_sql_exception $e) {
     error_log($e->getMessage());
@@ -162,6 +207,25 @@ require_once 'header.php';
 
             </div>
 
+            <!-- 기간 선택 -->
+            <label class = "analysis-page-size-label">Period</label>
+            <div class="analysis-page-date-range">
+                <input
+                    type="date"
+                    name="start_date"
+                    min="2020-05-05"
+                    max="2026-10-12"
+                    value="<?= htmlspecialchars($start_date) ?>"
+                    required>
+                <span>~</span>
+                <input
+                    type="date"
+                    name="end_date"
+                    min="2020-05-05"
+                    max="2026-10-12"
+                    value="<?= htmlspecialchars($end_date) ?>"
+                    required>
+            </div>
             <!-- 분석 버튼 -->
             <button type="submit" class="analysis-page-submit">Analyze</button>
         </form>
@@ -196,9 +260,10 @@ require_once 'header.php';
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Opponent</th>
                             <th>Runs</th>
                             <th>Moving Avg. Temp. (°C)</th>
-                            <th>Moving Avg.</th>
+                            <th>Moving Avg. Runs</th>
                         </tr>
                     </thead>
 
@@ -208,6 +273,14 @@ require_once 'header.php';
                                 <td>
                                     <?= htmlspecialchars(
                                         $row['game_date'],
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    ) ?>
+                                </td>
+                                
+                                <td>
+                                    <?= htmlspecialchars(
+                                        $row['opponent_name'],
                                         ENT_QUOTES,
                                         'UTF-8'
                                     ) ?>
