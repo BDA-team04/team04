@@ -32,12 +32,14 @@ function current_user(): ?array
 
 // 로그인한 사용자만 볼 수 있는 페이지 맨 위에서 호출.
 // 로그인 안 했으면 login.php 로 보낸다.
+// 로그인 후 원래 페이지로 돌아올 수 있게 현재 파일 이름을 기억해 둔다.
 function require_login(): void
 {
     if (is_logged_in()) {
         return;
     }
-    set_flash('error', '로그인이 필요합니다.');
+    $_SESSION['after_login'] = basename($_SERVER['PHP_SELF']);   // 파일 이름만 저장 (외부 주소로 이동 방지)
+    set_flash('error', 'Please log in to continue.');
     header('Location: login.php');
     exit;
 }
@@ -50,6 +52,25 @@ function login_user(array $user): void
     $_SESSION['user_id']          = (int)$user['user_id'];
     $_SESSION['username']         = $user['username'];
     $_SESSION['favorite_team_id'] = $user['favorite_team_id'] === null ? null : (int)$user['favorite_team_id'];
+}
+
+// 로그인 후 이동할 페이지 (require_login 이 기억해 둔 페이지, 없으면 home.php)
+function pop_after_login_page(): string
+{
+    $page = $_SESSION['after_login'] ?? 'home.php';
+    unset($_SESSION['after_login']);
+    return $page;
+}
+
+// 로그아웃: 세션 데이터와 세션 쿠키를 모두 지운다.
+function logout_user(): void
+{
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $p = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+    }
+    session_destroy();
 }
 
 /* ---------- 분석 조건 저장/조회 ---------- */

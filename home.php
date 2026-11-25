@@ -37,7 +37,7 @@ require_once 'header.php';
         </div>
 
         <!-- CRUD 분석 카드 -->
-        <a href="crud.php" class="crud-card">
+        <a href="game_manage.php" class="crud-card">
             <div>
                 <h2>CRUD</h2>
                 <p>Create, Read, Update, and Delete game data.</p>
@@ -73,13 +73,6 @@ require_once 'header.php';
                 </p>
             </div>
 
-            <div class="source-row">
-                <span class="source-label">Kaggle</span>
-                <p>Historical KBO data
-                    <br>
-                    - Additional historical game records
-                </p>
-            </div>
         </section>
 
         <!-- 팀 정보 -->
