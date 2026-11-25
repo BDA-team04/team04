@@ -235,13 +235,14 @@ $is_edit  = $game_id !== null;
 
 require_once 'header.php';
 ?>
+<link rel="stylesheet" href="crud_auth.css">
 
 <section class="intro">
     <h1 class="title"><?= $is_edit ? 'Edit Game #' . (int)$game_id : 'Add Game' ?></h1>
     <p class="content">Team stats are saved only for completed games. Win/loss is calculated automatically from the runs.</p>
 </section>
 
-<section class="auth-card">
+<section class="auth-card form-wide">
     <?php if ($errors): ?>
         <ul class="form-error">
             <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
@@ -288,14 +289,16 @@ require_once 'header.php';
             <input type="time" id="start_time" name="start_time" value="<?= h($form['start_time']) ?>">
         </div>
 
-        <div class="form-row">
-            <span>Status</span>
-            <?php foreach (STATUSES as $st): ?>
-                <label>
-                    <input type="radio" name="game_status" value="<?= $st ?>" <?= $form['game_status'] === $st ? 'checked' : '' ?> required>
-                    <?= ucfirst($st) ?>
-                </label>
-            <?php endforeach; ?>
+        <div class="form-row full">
+            <span class="form-label">Status</span>
+            <div class="form-options">
+                <?php foreach (STATUSES as $st): ?>
+                    <label>
+                        <input type="radio" name="game_status" value="<?= $st ?>" <?= $form['game_status'] === $st ? 'checked' : '' ?> required>
+                        <?= ucfirst($st) ?>
+                    </label>
+                <?php endforeach; ?>
+            </div>
         </div>
 
         <fieldset id="stats-box">
@@ -319,8 +322,10 @@ require_once 'header.php';
             </table>
         </fieldset>
 
-        <button type="submit" class="btn-primary"><?= $is_edit ? 'Save Changes' : 'Add Game' ?></button>
-        <a href="game_manage.php">Cancel</a>
+        <div class="form-actions">
+            <button type="submit" class="btn-primary"><?= $is_edit ? 'Save Changes' : 'Add Game' ?></button>
+            <a href="game_manage.php" class="btn-secondary">Cancel</a>
+        </div>
     </form>
 </section>
 

@@ -69,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require_once 'header.php';
 ?>
+<link rel="stylesheet" href="crud_auth.css">
 
 <section class="intro">
     <h1 class="title">Sign Up</h1>

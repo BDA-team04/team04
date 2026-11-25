@@ -130,13 +130,14 @@ $logged_in = is_logged_in();
 
 require_once 'header.php';
 ?>
+<link rel="stylesheet" href="crud_auth.css">
 
 <section class="intro">
     <h1 class="title">Game Data</h1>
     <p class="content">Search, add, edit, and delete KBO games. Your search conditions are kept while you browse other pages.</p>
 </section>
 
-<section class="analysis-page-layout">
+<section class="analysis-page-layout crud-layout">
     <!-- 왼쪽: 검색 조건 -->
     <div class="filter-panel">
         <h2>Search</h2>
@@ -163,7 +164,7 @@ require_once 'header.php';
                 <?php endforeach; ?>
             </select>
 
-            <span class="analysis-page-size-label">Status</span>
+            <span class="analysis-page-size-label crud-group-title">Status</span>
             <div class="analysis-page-options">
                 <?php foreach (STATUSES as $st): ?>
                     <label>
@@ -173,26 +174,34 @@ require_once 'header.php';
                 <?php endforeach; ?>
             </div>
 
-            <span class="analysis-page-size-label">Sort</span>
+            <span class="analysis-page-size-label crud-group-title">Sort</span>
             <div class="analysis-page-options">
                 <label><input type="radio" name="sort" value="newest" <?= $filter['sort'] === 'newest' ? 'checked' : '' ?>> Newest first</label>
                 <label><input type="radio" name="sort" value="oldest" <?= $filter['sort'] === 'oldest' ? 'checked' : '' ?>> Oldest first</label>
             </div>
 
-            <button type="submit" name="search" value="1" class="analysis-page-submit">Search</button>
-            <button type="submit" name="reset" value="1" formnovalidate>Reset</button>
+            <div class="filter-buttons">
+                <button type="submit" name="search" value="1" class="btn-primary btn-block">Search</button>
+                <button type="submit" name="reset" value="1" class="btn-secondary btn-block" formnovalidate>Reset</button>
+            </div>
         </form>
     </div>
 
     <!-- 오른쪽: 결과 목록 -->
     <div class="result-panel">
-        <h2>Games (<?= $total ?>)</h2>
+        <div class="crud-result-head">
+            <h2>Games (<?= number_format($total) ?>)</h2>
+            <?php if ($logged_in): ?>
+                <a href="game_form.php" class="btn-primary">+ Add Game</a>
+            <?php endif; ?>
+        </div>
         <?php show_flash(); ?>
 
-        <?php if ($logged_in): ?>
-            <p><a href="game_form.php" class="btn-primary">+ Add Game</a></p>
-        <?php else: ?>
-            <p class="analysis-page-message"><a href="login.php">Log in</a> to add, edit, or delete games.</p>
+        <?php if (!$logged_in): ?>
+            <p class="crud-login-hint">
+                Log in to add, edit, or delete games.
+                <a href="login.php" class="btn-secondary btn-sm">Log In</a>
+            </p>
         <?php endif; ?>
 
         <?php if (!$games): ?>
@@ -219,13 +228,15 @@ require_once 'header.php';
                             <td><?= $g['has_weather'] ? 'Yes' : 'No' ?></td>
                             <?php if ($logged_in): ?>
                                 <td>
-                                    <a href="game_form.php?id=<?= (int)$g['game_id'] ?>">Edit</a>
-                                    <form method="post" action="game_manage.php" style="display:inline"
-                                          onsubmit="return confirm('Delete this game and its team stats?');">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="game_id" value="<?= (int)$g['game_id'] ?>">
-                                        <button type="submit">Delete</button>
-                                    </form>
+                                    <div class="crud-actions">
+                                        <a href="game_form.php?id=<?= (int)$g['game_id'] ?>" class="btn-secondary btn-sm">Edit</a>
+                                        <form method="post" action="game_manage.php"
+                                              onsubmit="return confirm('Delete this game and its team stats?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="game_id" value="<?= (int)$g['game_id'] ?>">
+                                            <button type="submit" class="btn-danger btn-sm">Delete</button>
+                                        </form>
+                                    </div>
                                 </td>
                             <?php endif; ?>
                         </tr>
@@ -235,11 +246,11 @@ require_once 'header.php';
             </div>
 
             <?php if ($pages > 1): ?>
-                <p class="pagination">
-                    <?php if ($page > 1): ?><a href="game_manage.php?p=<?= $page - 1 ?>">&laquo; Prev</a><?php endif; ?>
-                    Page <?= $page ?> / <?= $pages ?>
-                    <?php if ($page < $pages): ?><a href="game_manage.php?p=<?= $page + 1 ?>">Next &raquo;</a><?php endif; ?>
-                </p>
+                <div class="pagination">
+                    <?php if ($page > 1): ?><a href="game_manage.php?p=<?= $page - 1 ?>" class="btn-secondary btn-sm">&laquo; Prev</a><?php endif; ?>
+                    <span>Page <?= $page ?> / <?= $pages ?></span>
+                    <?php if ($page < $pages): ?><a href="game_manage.php?p=<?= $page + 1 ?>" class="btn-secondary btn-sm">Next &raquo;</a><?php endif; ?>
+                </div>
             <?php endif; ?>
         <?php endif; ?>
     </div>
