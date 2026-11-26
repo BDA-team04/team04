@@ -1,4 +1,28 @@
 /* 작성자: 조혜림 */
+
+/* 폰트 설정 */
+@font-face {
+    font-family: 'KBO Dia Gothic';
+    src: url('./assets/fonts/KBO-Dia-Gothic_light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'KBO Dia Gothic';
+    src: url('./assets/fonts/KBO-Dia-Gothic_medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'KBO Dia Gothic';
+    src: url('./assets/fonts/KBO-Dia-Gothic_bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* 기본 설정 */
 * {
     margin: 0;
@@ -9,6 +33,7 @@
 body {
     font-family: 'KBO Dia Gothic', sans-serif;
     background: #FFFFFF;
+    font-weight: 500;
     color: #000000;
 }
 
@@ -122,7 +147,8 @@ body {
     display: block;
     width: 100%;
     min-width: 0;
-    height: 170px;
+    height: auto;
+    min-height: 170px;
     background: #F5F5F5;
     color: #000000;
     text-decoration: none;
@@ -137,13 +163,14 @@ body {
     color: #002063;
     font-size: 30px;
     margin-bottom: 15px;
+    line-height: 1.2;
 }
 
 /* 카드 내용 */
 .analysis-card p {
     color: #000000;
     font-size: 18px;
-    line-height: 1.8;
+    line-height: 1.5;
 }
 
 /* 카드 마우스 효과 */
@@ -220,7 +247,8 @@ body {
 /* CRUD 카드 */
 .crud-card {
     width: 100%;
-    height: 140px;
+    min-height: 140px;
+    height: auto;
     background: #F5F5F5;
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 20px;
@@ -241,6 +269,7 @@ body {
     font-size: 30px;
     margin-bottom: 10px;
     color: #002063;
+    line-height: 1.2;
 }
 
 /* CRUD 설명 */
@@ -263,6 +292,12 @@ body {
     flex-shrink: 0;
 }
 .crud-card .crud-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+
     width: 175px;
     height: 50px;
     background: #E5EBF7;
@@ -309,7 +344,7 @@ body {
 .analysis-page-layout {
     width: calc(100% - 80px);
     max-width: 1600px;
-    margin: 0 auto;
+    margin: 0 auto 25px;
     display: grid;
     grid-template-columns: minmax(0, 0.3fr) minmax(0, 1fr);
     gap: 20px;
@@ -325,17 +360,20 @@ body {
 
 /* 분석 페이지 - 필터 영역 */
 .filter-panel {
-    height: 580px;
+    height: auto;
+    min-height: 580px;
     background: #F5F5F5;
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 14px;
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
     padding: 20px;
+    align-self: start;
 }
 
 /* 분석 페이지 - 분석 결과 영역 */
 .result-panel {
-    height: 580px;
+    height: auto;
+    min-height: 580px;
     background: #E5EBF7;
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 14px;
@@ -353,8 +391,8 @@ body {
 .analysis-page-form {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    margin-top: 40px;
+    gap: 10px;
+    margin-top: 15px;
 }
 .analysis-page-form > label {
     font-size: 22px;
@@ -371,12 +409,12 @@ body {
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 10px;
     font-family: inherit;
-    font-size: 20px;
+    font-size: 16px;
     cursor: pointer;
 }
 
 .analysis-page-size-label {
-    margin-top: 15px;
+    margin-top: 10px;
 }
 
 /* 경기 수 라디오 버튼 */
@@ -389,7 +427,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 20px;
+    font-size: 16px;
     cursor: pointer;
 }
 .analysis-page-options input[type="radio"] {
@@ -402,7 +440,7 @@ body {
 .analysis-page-date-range {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
 }
 .analysis-page-date-range input {
     flex: 1;
@@ -412,7 +450,7 @@ body {
     border: 1px solid #B5BDD6;
     border-radius: 6px;
     background: #FFFFFF;
-    font-size: 20px;
+    font-size: 16px;
     box-sizing: border-box;
 }
 .analysis-page-date-range span {
@@ -421,21 +459,51 @@ body {
 
 /* 분석 버튼 */
 .analysis-page-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+
     width: 100%;
     height: 48px;
-    margin-top: 15px;
     background: #002063;
     color: #FFFFFF;
     border: none;
     border-radius: 10px;
     font-family: inherit;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     cursor: pointer;
     transition: backgrond 0.2s;
 }
 .analysis-page-submit:hover {
     background: #163E85;
+}
+
+/* 필터 초기화 버튼 */
+.analysis-page-reset {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+
+    width: 100%;
+    height: 48px;
+    background: #FFFFFF;
+    color: #002063;
+    border: 1px solid #B5BDD6;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: backgrond 0.2s, border-color 0.2s;
+}
+.analysis-page-reset:hover {
+    background: #E5EBF7;
+    border-color: #002063;
 }
 
 
@@ -462,11 +530,12 @@ body {
 /* 결과 테이블 스크롤 영역 */
 .analysis-page-table-wrap {
     width: 100%;
-    max-height: 220px;
+    max-height: 520px;
     margin-top: 25px;
     overflow: auto;
     border-radius: 10px;
     border: 1px solid #DCE3EF;
+    overflow-y: auto;
 }
 
 /* 결과 테이블 */
@@ -566,7 +635,7 @@ body {
     margin-top: 2px;
     color: #737B8C;
     font-size: 16px;
-    font-weight: 400;
+    font-weight: 300;
     line-height: 1.5;
 }
 
@@ -624,7 +693,7 @@ body {
     max-width: 1000px;
     margin: 0 auto 50px;
     padding: 30px;
-    background: #E5EBF7;
+    background: #F5F5F5;
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 14px;
     box-shadow: 0 4px 4px rgba(0, 0, 0, 0.15);
@@ -660,7 +729,7 @@ body {
     min-width: 0;
     margin-top: 5px;
     padding: 16px;
-    background: #DCE5F2;
+    background: #E5EBF7;
     border: 1px solid #CBD5E5;
     border-radius: 10px;
 }
@@ -723,6 +792,11 @@ body {
 
 /* 분석 페이지 디자인 game manage 페이지에 수정 적용 */
 
+/* 배경색 변경 */
+body:has(form[action="game_form.php"]) .auth-card {
+    background: #F5F5F5;
+}
+
 /* 검색 폼 2열 구성 */
 .filter-panel form[action="game_manage.php"] {
     display: grid;
@@ -736,20 +810,21 @@ body {
 form[action="game_manage.php"] label[for="from"],
 form[action="game_manage.php"] label[for="to"] {
     margin-top: 0;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 700;
 }
 
 /* 날짜 입력창 */
 form[action="game_manage.php"] input[type="date"] {
     width: 100%;
     min-width: 0;
-    height: 40px;
-    min-height: 40px;
+    height: 44px;
+    min-height: 44px;
     padding: 4px;
     border: 1px solid #B5BDD6;
     border-radius: 8px;
     background: #FFFFFF;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 /* From, To를 같은 열에 배치 */
@@ -784,14 +859,14 @@ form[action="game_manage.php"] input#to {
 form[action="game_manage.php"] .analysis-page-size-label {
     margin-top: 2px;
     color: #002063;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
 }
 
 /* Stadium, Team 드롭다운 */
 form[action="game_manage.php"] select {
-    height: 40px;
-    font-size: 16px;
+    height: 44px;
+    font-size: 18px;
     border-radius: 8px;
 }
 
@@ -803,16 +878,16 @@ form[action="game_manage.php"] select {
     gap: 6px 12px;
 }
 .filter-panel form[action="game_manage.php"] .analysis-page-options label {
-    font-size: 15px;
-    gap: 6px;
+    font-size: 18px;
+    gap: 8px;
 }
 
 
 /* Search, Reset 버튼 높이 및 간격 */
 form[action="game_manage.php"] button {
-    height: 40px;
+    height: 48px;
     margin-top: 3px;
-    font-size: 16px;
+    font-size: 20px;
 }
 
 /* Search, Reset 버튼 가로 배치 */
@@ -826,8 +901,8 @@ form[action="game_manage.php"] button {
 /* 카드 높이 */
 .analysis-page-layout:has(form[action="game_manage.php"]) .filter-panel,
 .analysis-page-layout:has(form[action="game_manage.php"]) .result-panel {
-    height: 580px;
-    min-height: 0;
+    height: auto;
+    min-height: 580px;
 }
 
 /* 검색 옵션 */
@@ -839,14 +914,14 @@ form[action="game_manage.php"] .analysis-page-options input[type="checkbox"] {
 
 /* Reset 버튼 */
 form[action="game_manage.php"] button[name="reset"] {
-    min-height: 40px;
+    min-height: 48px;
     background: #FFFFFF;
     color: #002063;
     border: 1px solid #B5BDD6;
     border-radius: 10px;
     padding: 8px 12px;
     font-family: inherit;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 700;
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
@@ -856,9 +931,6 @@ form[action="game_manage.php"] button[name="reset"]:hover {
 }
 
 /* 결과 영역 글씨 크기 */
-.analysis-page-layout:has(form[action="game_manage.php"]) .result-panel p {
-    font-size: 25px;
-}
 .analysis-page-layout:has(form[action="game_manage.php"]) .result-panel p a {
     color: #002063;
     text-decoration: none;
@@ -877,7 +949,7 @@ form[action="game_manage.php"] button[name="reset"]:hover {
     background: #002063;
     color: #FFFFFF;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     text-decoration: none;
 }
@@ -897,7 +969,7 @@ form[action="game_manage.php"] button[name="reset"]:hover {
     background: #FFFFFF;
     color: #002063;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     text-decoration: none;
     cursor: pointer;
 }
@@ -932,7 +1004,8 @@ form[action="game_manage.php"] button[name="reset"]:hover {
 body:has(form[action="game_form.php"]) .auth-card {
     width: calc(100% - 300px);
     max-width: 1000px;
-    padding: 25px 40px;
+    padding: 25px 40px 15px;
+    margin-bottom: 20px;
 }
 
 /* 입력 폼 2열 구성 */
@@ -968,7 +1041,7 @@ body:has(form[action="game_form.php"])
 .form-row:has(input[name="game_status"]) > span {
     grid-column: 1 / -1;
     color: #002063;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
 }
 
@@ -978,10 +1051,10 @@ body:has(form[action="game_form.php"])
     align-items: center;
     gap: 8px;
     margin: 0;
-    line-height: 2;
+    line-height: 1.3;
     color: #000000;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
 }
 body:has(form[action="game_form.php"])
@@ -1016,6 +1089,7 @@ body:has(form[action="game_form.php"]) .auth-form > button,
 body:has(form[action="game_form.php"]) .auth-form > a {
     grid-column: span 2;
 }
+
 
 /* 취소 버튼 */
 body:has(form[action="game_form.php"])
