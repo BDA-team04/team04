@@ -1,14 +1,76 @@
 <?php
 // 작성자: 용연주
+require_once 'session.php';
 require_once 'db.php';
 
-// 연도 선택
-$selected_year = $_GET['year'] ?? '';
+// 초기화
+if (isset($_GET['reset'])) {
+    clear_filter('analysis_rollup');
+    header('Location: analysis_rollup.php');
+    exit;
+}
+
+// 기본 분석 조건
+$default_filter = [
+    'year' => '',
+    'team_id' => '',
+    'min_temp' => '',
+    'max_temp' => '',
+    'rain' => '',
+    'stadium_type' => ''
+];
+
+// 이전에 저장한 조건
+$filter = load_filter('analysis_rollup', $default_filter);
+
+// 검색 버튼을 눌렀을 때 새로운 조건 저장
+$filter_keys = array_keys($default_filter);
+
+if (count(array_intersect($filter_keys, array_keys($_GET))) > 0) {
+    $filter = array_merge($default_filter, $_GET);
+}
+
+// 연도 검증
+$selected_year = (string)$filter['year'];
 $allowed_years = ['', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
 
 if (!in_array($selected_year, $allowed_years, true)) {
     $selected_year = '';
 }
+
+// 팀 ID 검증
+$team_id = $filter['team_id'];
+
+if ($team_id !== '' && ctype_digit((string)$team_id)) {
+    $team_id = (int)$team_id;
+} else {
+    $team_id = '';
+}
+
+// 기온 검증
+$min_temp = is_numeric($filter['min_temp'])
+    ? (float)$filter['min_temp'] : '';
+
+$max_temp = is_numeric($filter['max_temp'])
+    ? (float)$filter['max_temp'] : '';
+
+// 강수 여부 검증
+$rain_condition = in_array($filter['rain'], ['', 'dry', 'rain'], true)
+    ? $filter['rain'] : '';
+
+// 경기장 유형 검증
+$stadium_type = in_array($filter['stadium_type'], ['', 'dome', 'outdoor'], true)
+    ? $filter['stadium_type'] : '';
+
+// 검증한 조건 세션에 저장
+save_filter('analysis_rollup', [
+    'year' => $selected_year,
+    'team_id' => $team_id,
+    'min_temp' => $min_temp,
+    'max_temp' => $max_temp,
+    'rain' => $rain_condition,
+    'stadium_type' => $stadium_type
+]);
 
 $year_param = ($selected_year === '') ? 0 : (int)$selected_year;
 
@@ -18,22 +80,6 @@ $teams = db_query("
     FROM team
     ORDER BY team_name
 ");
-
-// 팀 선택
-$team_id = $_GET['team_id'] ?? '';
-
-if ($team_id !== '' && ctype_digit((string)$team_id)) {
-    $team_id = (int)$team_id;
-} else {
-    $team_id = '';
-}
-
-// 기온 필터
-$min_temp = $_GET['min_temp'] ?? '';
-$max_temp = $_GET['max_temp'] ?? '';
-
-$min_temp = is_numeric($min_temp) ? (float)$min_temp : '';
-$max_temp = is_numeric($max_temp) ? (float)$max_temp : '';
 
 // SQL 조건
 $join_condition = "
@@ -90,8 +136,6 @@ if ($max_temp !== '') {
 }
 
 // 강수 여부 필터
-$rain_condition = $_GET['rain'] ?? '';
-
 if ($rain_condition === 'dry') {
     $join_condition .= "
         AND EXISTS (
@@ -115,8 +159,6 @@ if ($rain_condition === 'dry') {
 }
 
 // 경기장 유형 필터
-$stadium_type = $_GET['stadium_type'] ?? '';
-
 if ($stadium_type === 'dome') {
     $join_condition .= " AND s.is_dome = 1";
 } elseif ($stadium_type === 'outdoor') {
@@ -209,7 +251,7 @@ require_once 'header.php';
     <div class="filter-panel">
         <h2>Filters</h2>
 
-        <form method="GET" action="analysis_rollup.php">
+        <form method="GET" action="analysis_rollup.php" class="analysis-page-form">
 
             <!-- 연도 선택 -->
             <label for="year">Season</label>
@@ -227,7 +269,7 @@ require_once 'header.php';
             <!-- 기온 범위 -->
             <br>
             <label>Temperature (°C)</label>
-            <div>
+            <div class="temperature-inputs">
                 <input type="number" name="min_temp"
                     step="0.1" placeholder="Min"
                     value="<?= h($min_temp) ?>">
@@ -279,8 +321,8 @@ require_once 'header.php';
 
             <!-- 검색 및 초기화 -->
             <br>
-            <button type="submit">Search</button>
-            <a href="analysis_rollup.php">Reset</a>
+            <button type="submit" class="analysis-page-submit">Search</button>
+            <a href="analysis_rollup.php?reset=1" class="analysis-page-reset">Reset</a>
 
         </form>
     </div>
@@ -290,44 +332,44 @@ require_once 'header.php';
         <h2>Analysis Results</h2>
         <h3>Region Summary</h3>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Region</th>
-                    <th>Completed</th>
-                    <th>Cancelled</th>
-                    <th>Postponed</th>
-                    <th>Avg. Runs</th>
-                    <th>Wins</th>
-                    <th>Losses</th>
-                    <th>Draws</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <?php foreach ($regions as $region): ?>
+        <div class="analysis-page-table-wrap">
+            <table class="analysis-page-table">
+                <thead>
                     <tr>
-                        <td>
-                            <?= $region['city'] === null ? 'All Regions' : h($region['city']) ?>
-                        </td>
-                        <td><?= h($region['completed_count']) ?></td>
-                        <td><?= h($region['cancelled_count']) ?></td>
-                        <td><?= h($region['postponed_count']) ?></td>
-                        <td>
-                            <?= $region['avg_runs'] !== null
-                                ? number_format((float)$region['avg_runs'], 1)
-                                : '-' ?>
-                        </td>
-                        <td><?= h($region['total_wins']) ?></td>
-                        <td><?= h($region['total_losses']) ?></td>
-                        <td><?= h($region['total_draws']) ?></td>
+                        <th>Region</th>
+                        <th>Completed</th>
+                        <th>Cancelled</th>
+                        <th>Postponed</th>
+                        <th>Avg. Runs</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                        <th>Draws</th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
 
+                <tbody>
+                    <?php foreach ($regions as $region): ?>
+                        <tr>
+                            <td>
+                                <?= $region['city'] === null ? 'All Regions' : h($region['city']) ?>
+                            </td>
+                            <td><?= h($region['completed_count']) ?></td>
+                            <td><?= h($region['cancelled_count']) ?></td>
+                            <td><?= h($region['postponed_count']) ?></td>
+                            <td>
+                                <?= $region['avg_runs'] !== null
+                                    ? number_format((float)$region['avg_runs'], 1)
+                                    : '-' ?>
+                            </td>
+                            <td><?= h($region['total_wins']) ?></td>
+                            <td><?= h($region['total_losses']) ?></td>
+                            <td><?= h($region['total_draws']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-
 </section>
 
 </main>
