@@ -18,14 +18,14 @@ $default = [
     'exclude_dome' => 1,
 ];
 
-if (isset($_GET['reset'])) {
-    clear_filter($page);
-    $raw = $default;
-} elseif (isset($_GET['submit'])) {
-    $raw = $_GET;
-} else {
-    $raw = load_filter($page, $default);
-}
+// Analyze 혹은 Reset Filter 버튼을 눌렀는지 확인
+$is_submit = isset($_GET['submit']);
+$is_reset = isset($_GET['reset']);
+
+// Reset이면 기본 조건, Analyze면 제출값, 그 외에는 저장된 조건 불러오기
+$raw = $is_reset
+    ? $default
+    : ($is_submit ? $_GET : load_filter($page, $default));
 
 $analysisTypeRaw = $raw['analysis_type'] ?? 'heat';
 $analysisType = is_scalar($analysisTypeRaw) ? (string)$analysisTypeRaw : 'heat';
@@ -72,7 +72,8 @@ try {
         $season = 'all';
     }
 
-    if (isset($_GET['submit'])) {
+    // Analyze 또는 Reset Filter를 누르면 검증된 조건을 세션에 저장
+    if ($is_submit || $is_reset) {
         save_filter($page, [
             'analysis_type' => $analysisType,
             'season' => $season,
@@ -194,255 +195,39 @@ $maxRuns = $rows
     ? max(1.0, ...array_map(fn($row) => (float)($row['avg_runs'] ?? 0), $rows))
     : 1.0;
 
+
+$runsChartData = array_map(static function ($row) {
+    return [
+        'label' => ($row['runs_ranking'] === null ? '—' : '#' . (int)$row['runs_ranking'])
+            . ' ' . (string)$row['team_name'],
+        'value' => $row['avg_runs'] === null ? null : (float)$row['avg_runs'],
+    ];
+}, $rows);
+
+$winChartData = array_map(static function ($row) {
+    return [
+        'label' => ($row['win_ranking'] === null ? '—' : '#' . (int)$row['win_ranking'])
+            . ' ' . (string)$row['team_name'],
+        'value' => $row['win_rate'] === null ? null : (float)$row['win_rate'],
+    ];
+}, $winRows);
+
 require_once __DIR__ . '/header.php';
 ?>
+<link rel="stylesheet" href="analysis_rank.css">
 
-<style>
-.analysis-page-layout {
-    display: grid !important;
-    grid-template-columns: minmax(240px, 285px) minmax(0, 1fr) !important;
-    gap: 22px !important;
-    align-items: start !important;
-    width: min(1200px, calc(100% - 60px)) !important;
-    max-width: 1200px !important;
-    margin: 0 auto 48px !important;
-    overflow: visible !important;
-}
-.analysis-page-layout > .filter-panel,
-.analysis-page-layout > .result-panel {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 24px !important;
-}
-.analysis-page-layout .filter-panel h2,
-.analysis-page-layout .result-panel h2 { margin: 0 0 18px !important; }
-.analysis-page-layout .analysis-page-form {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-}
-.analysis-page-layout .analysis-page-form select {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    min-height: 36px !important;
-    border: 1px solid #cbd3e3 !important;
-    border-radius: 6px !important;
-    padding: 6px 8px !important;
-    font-size: 14px !important;
-    background: #fff !important;
-}
-.analysis-page-layout .analysis-page-form label {
-    line-height: 1.5 !important;
-    font-size: 14px !important;
-}
-.analysis-page-layout .analysis-page-submit {
-    display: inline-block !important;
-    width: 100% !important;
-    margin-top: 7px !important;
-    padding: 10px 12px !important;
-    border: 0 !important;
-    border-radius: 7px !important;
-    background: #16265f !important;
-    color: white !important;
-    cursor: pointer !important;
-    font-weight: 600 !important;
-    font-size: 14px !important;
-}
-.analysis-page-layout .analysis-page-reset {
-    display: inline-block;
-    margin-top: 8px;
-    text-align: center;
-    font-size: 14px;
-}
-.rank-filter-note,
-.rank-result-note {
-    color: #64748b;
-    font-size: 12px;
-    line-height: 1.55;
-}
-.rank-filter-group { margin: 5px 0 9px; }
-.rank-check-label {
-    display: flex !important;
-    align-items: center;
-    gap: 7px;
-    margin: 9px 0 5px;
-}
-.rank-summary {
-    margin: 0 0 20px;
-    padding: 13px 15px;
-    border: 1px solid #dce4f1;
-    border-radius: 8px;
-    background: #f7f9fd;
-    color: #34445f;
-    font-size: 13px;
-    line-height: 1.6;
-}
-.rank-chart-panel {
-    margin: 0 0 24px;
-    padding: 18px 18px 12px;
-    border: 1px solid #e0e6f0;
-    border-radius: 10px;
-    background: #fff;
-}
-.rank-chart-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-}
-.rank-chart-heading h3 {
-    margin: 0;
-    color: #172b59;
-    font-size: 17px;
-}
-.rank-metric-toggle {
-    display: inline-flex;
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid #dce3ee;
-    border-radius: 8px;
-    background: #f4f6fa;
-}
-.rank-metric-toggle button {
-    border: 0;
-    border-radius: 6px;
-    padding: 8px 11px;
-    background: transparent;
-    color: #52627a;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.rank-metric-toggle button.active {
-    background: #16265f;
-    color: #fff;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .16);
-}
-.rank-chart-note {
-    margin: 0 0 14px;
-    color: #64748b;
-    font-size: 12px;
-    line-height: 1.5;
-}
-.rank-chart[hidden] { display: none !important; }
-.rank-chart-row {
-    display: grid;
-    grid-template-columns: 38px 70px minmax(50px, 1fr) 72px;
-    align-items: center;
-    gap: 10px;
-    margin: 12px 0;
-    font-size: 13px;
-}
-.rank-chart-position { color: #64748b; text-align: right; }
-.rank-chart-team { font-weight: 600; color: #263653; }
-.rank-bar-track { height: 19px; background: #e7edf7; border-radius: 5px; overflow: hidden; }
-.rank-bar { height: 100%; background: #244b8f; border-radius: 5px; }
-.rank-chart-value { text-align: right; font-variant-numeric: tabular-nums; }
-.rank-table-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 0 0 10px;
-}
-.rank-table-heading h3 { margin: 0; color: #172b59; font-size: 17px; }
-.rank-table-heading p { margin: 0; color: #64748b; font-size: 11px; }
-.analysis-page-table-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: 540px !important;
-    overflow: auto !important;
-    box-sizing: border-box !important;
-    border: 1px solid #d7ddea !important;
-    border-radius: 8px !important;
-    background: white !important;
-}
-table.analysis-page-table {
-    border-collapse: collapse !important;
-    border-spacing: 0 !important;
-    width: 100% !important;
-    min-width: 620px !important;
-    margin: 0 !important;
-    font-size: 13px !important;
-    line-height: 1.45 !important;
-    color: #24334f !important;
-}
-.analysis-page-table th,
-.analysis-page-table td {
-    border: 0 !important;
-    border-bottom: 1px solid #e7ebf3 !important;
-    padding: 11px 12px !important;
-    text-align: center !important;
-    white-space: nowrap !important;
-    vertical-align: middle !important;
-    font-size: 13px !important;
-}
-.analysis-page-table th {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 2 !important;
-    background: #e8edf8 !important;
-    color: #18275c !important;
-    font-weight: 700 !important;
-}
-.analysis-page-table tbody tr:nth-child(even) { background: #f6f8fd !important; }
-.analysis-page-table tbody tr:hover { background: #edf2fa !important; }
-.analysis-page-table td.numeric,
-.analysis-page-table th.numeric { text-align: center !important; }
-.rank-metric-cell { text-align: center !important; }
-.rank-metric-value { font-weight: 700; color: #1f3154; font-variant-numeric: tabular-nums; }
-.rank-metric-position {
-    display: inline-block;
-    min-width: 25px;
-    margin-right: 7px;
-    color: #64748b;
-    font-size: 11px;
-    font-weight: 600;
-}
-.rank-wld { font-variant-numeric: tabular-nums; color: #52627a; }
-.rank-empty, .rank-error {
-    padding: 16px;
-    border-radius: 8px;
-    background: #f7f9fd;
-    color: #52627a;
-}
-@media (max-width: 860px) {
-    .analysis-page-layout {
-        display: flex !important;
-        flex-direction: column !important;
-        width: calc(100% - 28px) !important;
-        gap: 18px !important;
-    }
-    .analysis-page-layout > .filter-panel,
-    .analysis-page-layout > .result-panel { padding: 18px !important; }
-}
-@media (max-width: 520px) {
-    .rank-chart-panel { padding: 14px 12px 10px; }
-    .rank-chart-row { grid-template-columns: 30px 52px minmax(40px, 1fr) 58px; gap: 7px; font-size: 12px; }
-    .rank-metric-toggle button { padding: 8px 9px; }
-}
-</style>
+<?php show_flash(); ?>
 
 <section class="intro">
     <h1 class="title">Ranking</h1>
     <p class="content">Compare team average runs and win rates on hot days and rainy days.</p>
 </section>
 
-<section class="analysis-page-layout">
+<section class="analysis-page-layout rank-page">
     <div class="filter-panel">
         <h2>Filters</h2>
-        <form method="get" action="analysis_rank.php" class="analysis-page-form">
+
+        <form method="GET" action="analysis_rank.php" class="analysis-page-form">
             <label for="analysis_type">Weather condition</label>
             <select name="analysis_type" id="analysis_type">
                 <option value="heat" <?= $analysisType === 'heat' ? 'selected' : '' ?>>Hot days</option>
@@ -459,8 +244,13 @@ table.analysis-page-table {
                 <?php endforeach; ?>
             </select>
 
-            <div class="rank-filter-group" id="heat-threshold-group" style="<?= $isHeat ? '' : 'display:none;' ?>">
-                <label for="heat_threshold">Hot-day threshold (daily maximum temperature)</label>
+            <label
+                for="heat_threshold"
+                id="heat-threshold-group"
+                class="analysis-page-size-label"
+                <?= $isHeat ? '' : 'hidden' ?>
+            >
+                Hot-day threshold (daily maximum temperature)
                 <select name="heat_threshold" id="heat_threshold">
                     <?php foreach ($heatThresholdOptions as $value): ?>
                         <option value="<?= h($value) ?>" <?= $heatThreshold === $value ? 'selected' : '' ?>>
@@ -468,10 +258,15 @@ table.analysis-page-table {
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </div>
+            </label>
 
-            <div class="rank-filter-group" id="rain-threshold-group" style="<?= !$isHeat ? '' : 'display:none;' ?>">
-                <label for="rain_threshold">Rainy-day threshold (daily precipitation)</label>
+            <label
+                for="rain_threshold"
+                id="rain-threshold-group"
+                class="analysis-page-size-label"
+                <?= !$isHeat ? '' : 'hidden' ?>
+            >
+                Rainy-day threshold (daily precipitation)
                 <select name="rain_threshold" id="rain_threshold">
                     <?php foreach ($rainThresholdOptions as $value): ?>
                         <option value="<?= h($value) ?>" <?= $rainThreshold === $value ? 'selected' : '' ?>>
@@ -479,16 +274,32 @@ table.analysis-page-table {
                         </option>
                     <?php endforeach; ?>
                 </select>
+            </label>
+
+            <div class="analysis-page-options">
+                <label>
+                    <input type="checkbox" name="exclude_dome" value="1" <?= $excludeDome ? 'checked' : '' ?>>
+                    Exclude dome stadiums
+                </label>
             </div>
 
-            <label class="rank-check-label">
-                <input type="checkbox" name="exclude_dome" value="1" <?= $excludeDome ? 'checked' : '' ?>>
-                Exclude dome stadiums
-            </label>
-            <p class="rank-filter-note">Checked by default because dome stadiums are less exposed to outdoor weather.</p>
+            <p class="analysis-page-message">
+                Dome stadiums are excluded by default because they are less exposed to outdoor weather.
+            </p>
 
-            <button type="submit" name="submit" value="1" class="analysis-page-submit">Analyze</button>
-            <a href="analysis_rank.php?reset=1" class="analysis-page-reset">Reset filters</a>
+            <button type="submit" name="submit" value="1" class="analysis-page-submit">
+                Analyze
+            </button>
+
+            <button
+                type="submit"
+                name="reset"
+                value="1"
+                class="analysis-page-reset"
+                formnovalidate
+            >
+                Reset filters
+            </button>
         </form>
     </div>
 
@@ -496,179 +307,227 @@ table.analysis-page-table {
         <h2>Analysis Results</h2>
 
         <?php if ($error): ?>
-            <p class="rank-error"><?= h($error) ?></p>
+            <p class="analysis-page-message"><?= h($error) ?></p>
         <?php elseif (!$rows): ?>
-            <p class="rank-empty">No data matched these conditions. Please check the imported game and weather data.</p>
+            <p class="analysis-page-message">
+                No data matched these conditions. Please check the imported game and weather data.
+            </p>
         <?php else: ?>
-            <div class="rank-summary">
+            <p class="analysis-page-message">
                 <strong><?= h($conditionTitle) ?></strong><br>
-                <?= h($thresholdDescription) ?>: <strong><?= h($thresholdValue) ?></strong>
-                · Season: <strong><?= $season === 'all' ? 'All available seasons' : h($season) ?></strong>
-                · Dome stadiums: <strong><?= $excludeDome ? 'Excluded' : 'Included' ?></strong>
+                <?= h($thresholdDescription) ?>:
+                <strong><?= h($thresholdValue) ?></strong>
+                · Season:
+                <strong><?= $season === 'all' ? 'All available seasons' : h($season) ?></strong>
+                · Dome stadiums:
+                <strong><?= $excludeDome ? 'Excluded' : 'Included' ?></strong>
+            </p>
+
+            <div class="rank-chart-header">
+                <h3 class="analysis-page-chart-title" id="rank-chart-title">
+                    Team Average Runs Ranking
+                </h3>
+
+                <div class="rank-metric-toggle" role="group" aria-label="Choose ranking metric">
+                    <button type="button" class="rank-metric-button is-active"
+                            data-metric="runs" aria-pressed="true">
+                        Average Runs
+                    </button>
+                    <button type="button" class="rank-metric-button"
+                            data-metric="win" aria-pressed="false">
+                        Win Rate
+                    </button>
+                </div>
             </div>
 
-            <section class="rank-chart-panel" aria-label="Team ranking chart">
-                <div class="rank-chart-heading">
-                    <h3 id="rank-chart-title">Team Average Runs Ranking</h3>
-                    <div class="rank-metric-toggle" role="group" aria-label="Choose ranking metric">
-                        <button type="button" class="active" data-metric="runs" aria-pressed="true">Average Runs</button>
-                        <button type="button" data-metric="win" aria-pressed="false">Win Rate</button>
-                    </div>
-                </div>
+            <div class="analysis-page-chart rank-chart-area">
+                <canvas id="rankChart"></canvas>
+            </div>
 
-                <p class="rank-chart-note" id="rank-chart-note">Average runs per team-game. Higher values are ranked first.</p>
+            <p class="analysis-page-message" id="rank-chart-note">
+                Average runs per team-game. Higher values are ranked first.
+            </p>
 
-                <div class="rank-chart" id="rank-chart-runs">
-                    <?php foreach ($rows as $row): ?>
-                        <?php
-                            $runsValue = $row['avg_runs'] === null ? 0.0 : (float)$row['avg_runs'];
-                            $runsWidth = min(100, max(0, $runsValue / $maxRuns * 100));
-                        ?>
-                        <div class="rank-chart-row">
-                            <span class="rank-chart-position">
-                                <?= $row['runs_ranking'] === null ? '—' : '#' . (int)$row['runs_ranking'] ?>
-                            </span>
-                            <span class="rank-chart-team"><?= h($row['team_name']) ?></span>
-                            <div class="rank-bar-track">
-                                <div class="rank-bar" style="width: <?= number_format($runsWidth, 1, '.', '') ?>%;"></div>
-                            </div>
-                            <span class="rank-chart-value">
-                                <?= $row['avg_runs'] === null ? 'N/A' : number_format((float)$row['avg_runs'], 2) ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+            <h3 class="analysis-page-chart-title">Team Performance Summary</h3>
+            <p class="analysis-page-message" id="rank-table-sort-note">
+                Sorted by average runs · each metric has its own rank.
+            </p>
 
-                <div class="rank-chart" id="rank-chart-win" hidden>
-                    <?php foreach ($winRows as $row): ?>
-                        <?php
-                            $winValue = $row['win_rate'] === null ? 0.0 : (float)$row['win_rate'];
-                            // Win rate is a percentage, so the chart scale is always 0–100%.
-                            $winWidth = min(100, max(0, $winValue));
-                        ?>
-                        <div class="rank-chart-row">
-                            <span class="rank-chart-position">
-                                <?= $row['win_ranking'] === null ? '—' : '#' . (int)$row['win_ranking'] ?>
-                            </span>
-                            <span class="rank-chart-team"><?= h($row['team_name']) ?></span>
-                            <div class="rank-bar-track">
-                                <div class="rank-bar" style="width: <?= number_format($winWidth, 1, '.', '') ?>%;"></div>
-                            </div>
-                            <span class="rank-chart-value">
-                                <?= $row['win_rate'] === null ? 'N/A' : number_format((float)$row['win_rate'], 2) . '%' ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-
-            <section class="rank-table-section">
-                <div class="rank-table-heading">
-                    <h3>Team Performance Summary</h3>
-                    <p id="rank-table-sort-note">Sorted by average runs · each metric has its own rank</p>
-                </div>
-                <div class="analysis-page-table-wrap">
-                    <table class="analysis-page-table">
-                        <thead>
-                            <tr>
-                                <th>Team</th>
-                                <th class="numeric">Games</th>
-                                <th class="numeric">Average Runs</th>
-                                <th class="numeric">Win Rate</th>
-                                <th class="numeric">W-L-D</th>
+            <div class="analysis-page-table-wrap">
+                <table class="analysis-page-table">
+                    <thead>
+                        <tr>
+                            <th>Team</th>
+                            <th>Games</th>
+                            <th>Average Runs</th>
+                            <th>Win Rate</th>
+                            <th>Record (W-L-D)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rank-summary-body">
+                        <?php foreach ($rows as $row): ?>
+                            <tr
+                                data-runs-rank="<?= $row['runs_ranking'] === null ? 999999 : (int)$row['runs_ranking'] ?>"
+                                data-win-rank="<?= $row['win_ranking'] === null ? 999999 : (int)$row['win_ranking'] ?>"
+                                data-team="<?= h($row['team_name']) ?>"
+                            >
+                                <td><?= h($row['team_name']) ?></td>
+                                <td><?= number_format((int)$row['game_count']) ?></td>
+                                <td>
+                                    <span class="rank-metric-cell">
+                                        <strong class="rank-position"><?= $row['runs_ranking'] === null ? '—' : '#' . (int)$row['runs_ranking'] ?></strong>
+                                        <span class="rank-value"><?= $row['avg_runs'] === null ? 'N/A' : number_format((float)$row['avg_runs'], 2) ?></span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="rank-metric-cell">
+                                        <strong class="rank-position"><?= $row['win_ranking'] === null ? '—' : '#' . (int)$row['win_ranking'] ?></strong>
+                                        <span class="rank-value"><?= $row['win_rate'] === null ? 'N/A' : number_format((float)$row['win_rate'], 2) . '%' ?></span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?= number_format((int)$row['wins']) ?>-<?= number_format((int)$row['losses']) ?>-<?= number_format((int)$row['draws']) ?>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody id="rank-summary-body">
-                            <?php foreach ($rows as $row): ?>
-                                <tr
-                                    data-runs-rank="<?= $row['runs_ranking'] === null ? 999999 : (int)$row['runs_ranking'] ?>"
-                                    data-win-rank="<?= $row['win_ranking'] === null ? 999999 : (int)$row['win_ranking'] ?>"
-                                    data-team="<?= h($row['team_name']) ?>"
-                                >
-                                    <td><?= h($row['team_name']) ?></td>
-                                    <td class="numeric"><?= number_format((int)$row['game_count']) ?></td>
-                                    <td class="rank-metric-cell">
-                                        <span class="rank-metric-position">
-                                            <?= $row['runs_ranking'] === null ? '—' : '#' . (int)$row['runs_ranking'] ?>
-                                        </span>
-                                        <span class="rank-metric-value">
-                                            <?= $row['avg_runs'] === null ? 'N/A' : number_format((float)$row['avg_runs'], 2) ?>
-                                        </span>
-                                    </td>
-                                    <td class="rank-metric-cell">
-                                        <span class="rank-metric-position">
-                                            <?= $row['win_ranking'] === null ? '—' : '#' . (int)$row['win_ranking'] ?>
-                                        </span>
-                                        <span class="rank-metric-value">
-                                            <?= $row['win_rate'] === null ? 'N/A' : number_format((float)$row['win_rate'], 2) . '%' ?>
-                                        </span>
-                                    </td>
-                                    <td class="numeric rank-wld">
-                                        <?= number_format((int)$row['wins']) ?>-<?= number_format((int)$row['losses']) ?>-<?= number_format((int)$row['draws']) ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="rank-result-note">The table order follows the selected chart. W-L-D means wins-losses-draws. Draws are excluded from the win-rate denominator.</p>
-            </section>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
 
-            <p class="rank-result-note">Note: Weather is matched to the game date and stadium city. Rainfall is the daily total, not necessarily rainfall during game time.</p>
+            <p class="analysis-page-message">
+                Record is shown as wins-losses-draws (W-L-D). Draws are excluded from the win-rate denominator.
+            </p>
+            <p class="analysis-page-message">
+                Note: Weather is matched to the game date and stadium city. Rainfall is the daily total,
+                not necessarily rainfall during game time.
+            </p>
         <?php endif; ?>
     </div>
 </section>
 
+<?php if (!$error && !empty($rows)): ?>
+<script src="js/chart.umd.min.js"></script>
 <script>
-// Switch the single visible chart and keep the summary table in the same ranking order.
 (function () {
-    const metricButtons = document.querySelectorAll('.rank-metric-toggle button');
-    const runsChart = document.getElementById('rank-chart-runs');
-    const winChart = document.getElementById('rank-chart-win');
+    const runsData = <?= json_encode(
+        $runsChartData,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    ) ?>;
+
+    const winData = <?= json_encode(
+        $winChartData,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    ) ?>;
+
     const chartTitle = document.getElementById('rank-chart-title');
     const chartNote = document.getElementById('rank-chart-note');
     const tableBody = document.getElementById('rank-summary-body');
     const tableSortNote = document.getElementById('rank-table-sort-note');
+    const metricButtons = document.querySelectorAll('.rank-metric-button');
+    const chartCanvas = document.getElementById('rankChart');
+
+    let rankChart = null;
+
+    if (chartCanvas && window.Chart) {
+        rankChart = new Chart(chartCanvas, {
+            type: 'bar',
+            data: {
+                labels: runsData.map(item => item.label),
+                datasets: [{
+                    label: 'Average Runs',
+                    data: runsData.map(item => item.value),
+                    backgroundColor: '#002063'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Average Runs'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,
+                            align: 'start',
+                            crossAlign: 'far'
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     function setMetric(metric) {
         const showRuns = metric === 'runs';
-
-        if (runsChart && winChart) {
-            runsChart.hidden = !showRuns;
-            winChart.hidden = showRuns;
-        }
+        const selectedData = showRuns ? runsData : winData;
 
         if (chartTitle) {
-            chartTitle.textContent = showRuns ? 'Team Average Runs Ranking' : 'Team Win Rate Ranking';
+            chartTitle.textContent = showRuns
+                ? 'Team Average Runs Ranking'
+                : 'Team Win Rate Ranking';
         }
+
         if (chartNote) {
             chartNote.textContent = showRuns
                 ? 'Average runs per team-game. Higher values are ranked first.'
                 : 'Win rate = wins ÷ (wins + losses). Draws are excluded from the denominator.';
         }
+
         if (tableSortNote) {
             tableSortNote.textContent = showRuns
-                ? 'Sorted by average runs · each metric has its own rank'
-                : 'Sorted by win rate · each metric has its own rank';
+                ? 'Sorted by average runs · each metric has its own rank.'
+                : 'Sorted by win rate · each metric has its own rank.';
+        }
+
+        if (rankChart) {
+            rankChart.data.labels = selectedData.map(item => item.label);
+            rankChart.data.datasets[0].label = showRuns ? 'Average Runs' : 'Win Rate';
+            rankChart.data.datasets[0].data = selectedData.map(item => item.value);
+            rankChart.options.scales.x.max = showRuns ? undefined : 100;
+            rankChart.options.scales.x.title.text = showRuns
+                ? 'Average Runs'
+                : 'Win Rate (%)';
+            rankChart.options.scales.x.ticks.callback = function (value) {
+                return showRuns ? value : value + '%';
+            };
+            rankChart.update();
         }
 
         metricButtons.forEach(function (button) {
-            const active = button.dataset.metric === metric;
-            button.classList.toggle('active', active);
-            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            const isActive = button.dataset.metric === metric;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
 
-        // Reorder the one summary table to match the selected chart.
         if (tableBody) {
-            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            const tableRows = Array.from(tableBody.querySelectorAll('tr'));
             const rankKey = showRuns ? 'runsRank' : 'winRank';
-            rows.sort(function (a, b) {
+
+            tableRows.sort(function (a, b) {
                 const rankA = Number(a.dataset[rankKey] || 999999);
                 const rankB = Number(b.dataset[rankKey] || 999999);
-                if (rankA !== rankB) return rankA - rankB;
+
+                if (rankA !== rankB) {
+                    return rankA - rankB;
+                }
+
                 return (a.dataset.team || '').localeCompare(b.dataset.team || '');
             });
-            rows.forEach(function (row) { tableBody.appendChild(row); });
+
+            tableRows.forEach(function (row) {
+                tableBody.appendChild(row);
+            });
         }
     }
 
@@ -678,15 +537,25 @@ table.analysis-page-table {
         });
     });
 
+    setMetric('runs');
+})();
+</script>
+<?php endif; ?>
+
+<script>
+(function () {
     const typeSelect = document.getElementById('analysis_type');
     const heatGroup = document.getElementById('heat-threshold-group');
     const rainGroup = document.getElementById('rain-threshold-group');
 
     function updateThresholdFields() {
-        if (!typeSelect || !heatGroup || !rainGroup) return;
+        if (!typeSelect || !heatGroup || !rainGroup) {
+            return;
+        }
+
         const isHeat = typeSelect.value === 'heat';
-        heatGroup.style.display = isHeat ? '' : 'none';
-        rainGroup.style.display = isHeat ? 'none' : '';
+        heatGroup.hidden = !isHeat;
+        rainGroup.hidden = isHeat;
     }
 
     if (typeSelect) {
