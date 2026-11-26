@@ -15,21 +15,37 @@ $favorite_team_id = isset($user['favorite_team_id'])
 // 분석 조건 세션 키
 $page = 'analysis_window_' . ($user ? $user['user_id']: 'guest');
 
+// DB에 저장된 경기의 최소, 최대 날짜
+$date_bounds = db_query("
+    SELECT
+        MIN(g.game_date) AS min_date,
+        MAX(g.game_date) AS max_date
+    FROM game As g
+    INNER JOIN team_game_stats As s
+        ON g.game_id = s.game_id
+    WHERE g.game_status = 'completed'
+");
+
+$min_date = $date_bounds[0]['min_date'] ?? '';
+$max_date = $date_bounds[0]['max_date'] ?? '';
+
 // 기본 분석 조건
 $default = [
     'team_id' => $favorite_team_id,
     'window_size' => 5,
-    'start_date' => '2020-05-05',
-    'end_date' => '2026-10-12'
+    'start_date' => $min_date,
+    'end_date' => $max_date
 ];
 
-// Analyze 버튼을 눌렀는지 확인
+// Analyze 혹은 Reset Filter 버튼을 눌렀는지 확인
 $is_submit = isset($_GET['submit']);
+$is_reset = isset($_GET['reset']);
 
-// 제출 시 GET 값 사용, 아니면 세션에 저장된 조건 불러오기
-$filter = $is_submit
-    ? $_GET
-    : load_filter($page, $default);
+// Reset이면 기본 조건, Analyze면 제출값, 그 외에는 저장된 조건 불러오기
+$filter = $is_reset
+    ? $default
+    : ($is_submit ? $_GET : load_filter($page, $default));
+
 
 // 분석 조건 가져오기
 $team_id = filter_var(
@@ -51,8 +67,8 @@ if (!in_array($window_size, [5, 10, 15, 20], true)) {
 }
 
 // 기간 선택 (2020~2026)
-function validAnalysisDate($date) {
-    if (!is_string($date)) {
+function validAnalysisDate($date, $min_date, $max_date) {
+    if (!is_string($date) || $min_date === '' || $max_date === '') {
         return false;
     }
 
@@ -60,16 +76,16 @@ function validAnalysisDate($date) {
 
     return $parsed !== false
         && $parsed->format('Y-m-d') === $date
-        && $date >= '2020-05-05'
-        && $date <= '2026-10-12';
+        && $date >= $min_date
+        && $date <= $max_date;
 }
 
-if (!validAnalysisDate($start_date)) {
-    $start_date = '2020-05-05';
+if (!validAnalysisDate($start_date, $min_date, $max_date)) {
+    $start_date = $min_date;
 }
 
-if (!validAnalysisDate($end_date)) {
-    $end_date = '2026-10-12';
+if (!validAnalysisDate($end_date, $min_date, $max_date)) {
+    $end_date = $max_date;
 }
 
 if ($start_date > $end_date) {
@@ -101,8 +117,8 @@ try {
         $team_id = $valid_ids[0] ?? null;
     }
 
-    // Analyze 버튼을 누르면 검증된 조건을 세션에 저장
-    if ($is_submit) {
+    // Analyze 또는 Reset Filter 버튼을 누르면 검증된 조건을 세션에 저장
+    if ($is_submit || $is_reset) {
         save_filter($page, [
             'team_id' => $team_id,
             'window_size' => $window_size,
@@ -244,25 +260,34 @@ require_once 'header.php';
                 <input
                     type="date"
                     name="start_date"
-                    min="2020-05-05"
-                    max="2026-10-12"
+                    min="<?= h($min_date) ?>"
+                    max="<?= h($max_date) ?>"
                     value="<?= h($start_date) ?>"
                     required>
                 <span>~</span>
                 <input
                     type="date"
                     name="end_date"
-                    min="2020-05-05"
-                    max="2026-10-12"
+                    min="<?= h($min_date) ?>"
+                    max="<?= h($max_date) ?>"
                     value="<?= h($end_date) ?>"
                     required>
             </div>
+
             <!-- 분석 버튼 -->
             <button 
                 type="submit"
                 name="submit"
                 value="1"
-                class="analysis-page-submit">Analyze</button>
+                class="analysis-page-submit">Analyze
+            </button>
+            <button
+                type="submit"
+                name="reset"
+                value="1"
+                class="analysis-page-reset" formnovalidate>
+                Reset Filter
+            </button>
         </form>
     </div>
 
