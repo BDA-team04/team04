@@ -25,7 +25,7 @@ if (isset($_GET['reset'])) {
     $raw = load_filter($page, $default);
 }
 $season = (string)($raw['season'] ?? 'all');
-if (!in_array($season, ['all', '2020', '2021', '2022', '2023', '2024', '2025'], true)) {
+if (!in_array($season, ['all', '2020', '2021', '2022', '2023', '2024', '2025', '2026'], true)) {
     $season = 'all';
 }
 $homeAway = (string)($raw['home_away'] ?? 'all');
@@ -54,6 +54,21 @@ $chart = [];
 
 try {
     $stadiums = db_query('SELECT stadium_id, stadium_name, city, is_dome FROM stadium ORDER BY stadium_name');
+
+$cityEnglish = [
+    '서울' => 'Seoul',
+    '인천' => 'Incheon',
+    '광주' => 'Gwangju',
+    '대구' => 'Daegu',
+    '대전' => 'Daejeon',
+    '부산' => 'Busan',
+    '수원' => 'Suwon',
+    '울산' => 'Ulsan',
+    '창원' => 'Changwon',
+    '청주' => 'Cheongju',
+    '포항' => 'Pohang',
+];
+
     $validIds = array_map('intval', array_column($stadiums, 'stadium_id'));
     $selectedStadiums = array_values(array_intersect($selectedStadiums, $validIds));
 
@@ -143,117 +158,6 @@ try {
 
 require_once __DIR__ . '/header.php';
 ?>
-<!-- 분석 페이지 전용 CSS: 팀 공통 style.css는 수정하지 않음 -->
-<style>
-/* Make the content responsive while keeping the shared navigation and color scheme. */
-.analysis-page-layout {
-    display: grid !important;
-    grid-template-columns: minmax(240px, 285px) minmax(0, 1fr) !important;
-    gap: 22px !important;
-    align-items: start !important;
-    width: min(1200px, calc(100% - 60px)) !important;
-    max-width: 1200px !important;
-    margin: 0 auto 48px !important;
-    overflow: visible !important;
-}
-.analysis-page-layout > .filter-panel,
-.analysis-page-layout > .result-panel {
-    box-sizing: border-box !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 24px !important;
-}
-.analysis-page-layout .filter-panel h2,
-.analysis-page-layout .result-panel h2 { margin: 0 0 18px !important; }
-.analysis-page-layout .analysis-page-form { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 8px !important; }
-.analysis-page-layout .analysis-page-form select,
-.analysis-page-layout .analysis-page-form input[type=number] {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    min-height: 35px !important;
-    border: 1px solid #cbd3e3 !important;
-    border-radius: 6px !important;
-    padding: 6px 8px !important;
-    font-size: 14px !important;
-}
-.analysis-page-layout .analysis-page-options { display: flex !important; flex-wrap: wrap !important; gap: 14px !important; margin: 4px 0 8px !important; }
-.analysis-page-layout .analysis-page-options label { display: inline-flex !important; align-items: center !important; gap: 3px !important; font-size: 14px !important; }
-.analysis-page-layout .analysis-page-form label { line-height: 1.5 !important; }
-.analysis-page-layout .analysis-page-form .analysis-page-submit {
-    display: inline-block !important;
-    width: 100% !important;
-    margin-top: 7px !important;
-    padding: 10px 12px !important;
-    border: 0 !important;
-    border-radius: 7px !important;
-    background: #16265f !important;
-    color: white !important;
-    cursor: pointer !important;
-    font-weight: 600 !important;
-    font-size: 14px !important;
-}
-.analysis-page-layout .analysis-page-chart { max-width: 100% !important; box-sizing: border-box !important; }
-.analysis-page-layout .analysis-page-chart > div { min-width: 0 !important; }
-.analysis-page-layout .analysis-page-chart > div > div { min-width: 0 !important; }
-.analysis-page-layout .analysis-page-table-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: 540px !important;
-    overflow: auto !important;
-    box-sizing: border-box !important;
-    margin-top: 28px !important;
-    border: 1px solid #d7ddea !important;
-    border-radius: 8px !important;
-    background: white !important;
-}
-.analysis-page-layout table.analysis-page-table {
-    border-collapse: collapse !important;
-    border-spacing: 0 !important;
-    table-layout: auto !important;
-    width: 100% !important;
-    min-width: 750px !important;
-    margin: 0 !important;
-    font-size: 13px !important;
-    line-height: 1.45 !important;
-    color: #24334f !important;
-}
-.analysis-page-layout .analysis-page-table th,
-.analysis-page-layout .analysis-page-table td {
-    border: 0 !important;
-    border-bottom: 1px solid #e7ebf3 !important;
-    padding: 10px 11px !important;
-    text-align: left !important;
-    white-space: nowrap !important;
-    vertical-align: middle !important;
-    width: auto !important;
-    height: auto !important;
-    font-size: 13px !important;
-}
-.analysis-page-layout .analysis-page-table th {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 2 !important;
-    background: #e8edf8 !important;
-    color: #18275c !important;
-    font-weight: 700 !important;
-}
-.analysis-page-layout .analysis-page-table tbody tr:nth-child(even) { background: #f6f8fd !important; }
-.analysis-page-layout .analysis-page-table tbody tr:hover { background: #edf2fa !important; }
-.analysis-page-layout .analysis-page-table td:nth-child(n+4),
-.analysis-page-layout .analysis-page-table th:nth-child(n+4) { text-align: right !important; }
-@media (max-width: 860px) {
-    .analysis-page-layout { display: flex !important; flex-direction: column !important; width: calc(100% - 28px) !important; gap: 18px !important; }
-    .analysis-page-layout > .filter-panel,
-    .analysis-page-layout > .result-panel { padding: 18px !important; }
-}
-</style>
 <section class="intro">
     <h1 class="title">Aggregating</h1>
     <p class="content">Compare KBO performance by temperature, stadium, and home/away.</p>
@@ -265,8 +169,8 @@ require_once __DIR__ . '/header.php';
         <form method="get" action="analysis_group.php" class="analysis-page-form">
             <label for="season">Season</label>
             <select name="season" id="season">
-                <option value="all" <?= $season === 'all' ? 'selected' : '' ?>>All seasons (2020–2025)</option>
-                <?php for ($y = 2020; $y <= 2025; $y++): ?>
+                <option value="all" <?= $season === 'all' ? 'selected' : '' ?>>All seasons (2020–2026)</option>
+                <?php for ($y = 2020; $y <= 2026; $y++): ?>
                     <option value="<?= $y ?>" <?= $season === (string)$y ? 'selected' : '' ?>><?= $y ?></option>
                 <?php endfor; ?>
             </select>
@@ -277,7 +181,7 @@ require_once __DIR__ . '/header.php';
                     <label style="display:block;margin:6px 0;font-size:14px;">
                         <input type="checkbox" name="stadiums[]" value="<?= (int)$st['stadium_id'] ?>"
                             <?= in_array((int)$st['stadium_id'], $selectedStadiums, true) ? 'checked' : '' ?>>
-                        <?= h($st['stadium_name']) ?> (<?= h($st['city']) ?>)
+                        <?= h($st['stadium_name']) ?> (<?= h($cityEnglish[$st['city']] ?? $st['city']) ?>)
                     </label>
                 <?php endforeach; ?>
             </div>
@@ -299,7 +203,13 @@ require_once __DIR__ . '/header.php';
             <input type="number" name="min_games" id="min_games" min="1" max="1000"
                    value="<?= $minGames ?>" required style="width:100%;padding:8px;">
             <button type="submit" name="submit" value="1" class="analysis-page-submit">Analyze</button>
-            <a href="analysis_group.php?reset=1" style="display:block;margin-top:12px;">Reset filters</a>
+            
+<a href="analysis_group.php?reset=1"
+   class="analysis-page-reset"
+   style="text-decoration:none;">
+    Reset filters
+</a>
+
         </form>
     </div>
 
