@@ -1,6 +1,7 @@
 <?php
 // 작성자: 용연주
 // 수정: 정윤아 (지역 → Drill-down 링크 연결, 홈팀 기준 승패·승률, 시즌 목록 DB 조회)
+// 수정: 조혜림 (다른 분석 페이지와 디자인 통일: br 삭제, reset 버튼 수정, 링크 수정)
 require_once 'session.php';
 require_once 'db.php';
 
@@ -281,7 +282,6 @@ require_once 'header.php';
             </select>
 
             <!-- 기온 범위 -->
-            <br>
             <label>Temperature (°C)</label>
             <div class="analysis-page-date-range">
                 <input type="number" name="min_temp"
@@ -294,7 +294,6 @@ require_once 'header.php';
             </div>
 
             <!-- 강수 여부 -->
-            <br>
             <label for="rain">Rain Condition</label>
             <select name="rain" id="rain">
                 <option value="">All</option>
@@ -307,7 +306,6 @@ require_once 'header.php';
             </select>
 
             <!-- 팀 선택 -->
-            <br>
             <label for="team_id">Team</label>
             <select name="team_id" id="team_id">
                 <option value="">All Teams</option>
@@ -321,7 +319,6 @@ require_once 'header.php';
             </select>
 
             <!-- 경기장 유형 -->
-            <br>
             <label for="stadium_type">Stadium Type</label>
             <select name="stadium_type" id="stadium_type">
                 <option value="">All</option>
@@ -334,9 +331,8 @@ require_once 'header.php';
             </select>
 
             <!-- 검색 및 초기화 -->
-            <br>
             <button type="submit" class="analysis-page-submit">Search</button>
-            <a href="analysis_rollup.php?reset=1" class="analysis-page-reset">Reset</a>
+            <button type="submit" name="reset" value="1" class="analysis-page-reset">Reset Filter</button>
 
         </form>
     </div>
@@ -375,7 +371,7 @@ require_once 'header.php';
                                     <strong>All Regions</strong>
                                 <?php else: ?>
                                     <!-- 지역을 누르면 Drill-down 페이지로 (구장 → 월별) -->
-                                    <a href="analysis_drilldown.php?city=<?= urlencode($region['city']) ?>">
+                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($region['city']) ?>">
                                         <?= h($region['city']) ?>
                                     </a>
                                 <?php endif; ?>

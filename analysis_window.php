@@ -8,9 +8,10 @@ require_once 'db.php';
 
 // 로그인 사용자 정보
 $user = current_user();
+
 $favorite_team_id = isset($user['favorite_team_id'])
     ? (int)$user['favorite_team_id']
-    : null;
+    : '';
 
 // 분석 조건 세션 키
 $page = 'analysis_window_' . ($user ? $user['user_id']: 'guest');
@@ -32,9 +33,9 @@ $max_date = $date_bounds[0]['max_date'] ?? '';
 // 기본 분석 조건
 $default = [
     'team_id' => $favorite_team_id,
-    'window_size' => 5,
-    'start_date' => $min_date,
-    'end_date' => $max_date
+    'window_size' => '',
+    'start_date' => '',
+    'end_date' => ''
 ];
 
 // Analyze 혹은 Reset Filter 버튼을 눌렀는지 확인
@@ -42,28 +43,30 @@ $is_submit = isset($_GET['submit']);
 $is_reset = isset($_GET['reset']);
 
 // Reset이면 기본 조건, Analyze면 제출값, 그 외에는 저장된 조건 불러오기
-$filter = $is_reset
-    ? $default
-    : ($is_submit ? $_GET : load_filter($page, $default));
+if ($is_reset) {
+    clear_filter($page);
+    header('Location: analysis_window.php');
+    exit;
+}
+
+$filter = $is_submit ? $_GET : load_filter($page, $default);
 
 
 // 분석 조건 가져오기
-$team_id = filter_var(
-    $filter['team_id'] ?? null,
-    FILTER_VALIDATE_INT
-);
+$team_id = isset($filter['team_id']) && ctype_digit((string)$filter['team_id'])
+    ? (int)$filter['team_id']
+    : null;
 
-$window_size = filter_var(
-    $filter['window_size'] ?? 5,
-    FILTER_VALIDATE_INT
-);
+$window_size = isset($filter['window_size']) && ctype_digit((string)$filter['window_size'])
+    ? (int)$filter['window_size']
+    : null;
 
-$start_date = $filter['start_date'] ?? $default['start_date'];
-$end_date = $filter['end_date'] ?? $default['end_date'];
+$start_date = $filter['start_date'] ?? '';
+$end_date = $filter['end_date'] ?? '';
 
 // Window Size 검증
 if (!in_array($window_size, [5, 10, 15, 20], true)) {
-    $window_size = 5;
+    $window_size = null;
 }
 
 // 기간 선택 (2020~2026)
@@ -81,23 +84,24 @@ function validAnalysisDate($date, $min_date, $max_date) {
 }
 
 if (!validAnalysisDate($start_date, $min_date, $max_date)) {
-    $start_date = $min_date;
+    $start_date = '';
 }
 
 if (!validAnalysisDate($end_date, $min_date, $max_date)) {
-    $end_date = $max_date;
+    $end_date = '';
 }
 
-if ($start_date > $end_date) {
+if ($start_date !== '' && $end_date !== '' && $start_date > $end_date) {
     [$start_date, $end_date] = [$end_date, $start_date];
 }
 
 // SQL의 이전 경기 수
-$preceding = $window_size - 1;
+$preceding = ($window_size ?? 5) - 1;
 
 $teams = [];
 $results = [];
 $error = null;
+$is_ready = false;
 
 try {
     // 팀 목록 조회
@@ -113,12 +117,17 @@ try {
         array_column($teams, 'team_id')
     );
 
-    if (!in_array($team_id, $valid_ids, true)) {
-        $team_id = $valid_ids[0] ?? null;
+    if ($team_id !== null && !in_array($team_id, $valid_ids, true)) {
+        $team_id = null;
     }
 
-    // Analyze 또는 Reset Filter 버튼을 누르면 검증된 조건을 세션에 저장
-    if ($is_submit || $is_reset) {
+    $is_ready = $team_id !== null
+        && $window_size !== null
+        && $start_date !== ''
+        && $end_date !== '';
+
+    // 유효한 조건으로 Analyze를 실행한 경우 세션 저장
+    if ($is_ready) {
         save_filter($page, [
             'team_id' => $team_id,
             'window_size' => $window_size,
@@ -128,7 +137,7 @@ try {
     }
 
     // 이동평균 SQL
-    if ($team_id !== null) {
+    if ($is_ready) {
         $sql = "
             wITH window_data AS (
             SELECT
@@ -223,7 +232,8 @@ require_once 'header.php';
         
             <!-- 팀 선택 -->
             <label for="team_id">Team</label>
-            <select name="team_id" id="team_id">
+            <select name="team_id" id="team_id" required>
+                <option value="">Select Team</option>
                 <?php foreach ($teams as $team): ?>
 
                     <option
@@ -247,6 +257,7 @@ require_once 'header.php';
                             name="window_size"
                             value="<?= $n ?>"
                             <?= $window_size === $n ? 'checked' : '' ?>
+                            required
                         >
                         <?= $n ?> Games
                     </label>
@@ -298,6 +309,10 @@ require_once 'header.php';
         <?php if ($error): ?>
             <p class="analysis-page-message">
                 <?= h($error) ?>
+            </p>
+        <?php elseif (!$is_ready): ?>
+            <p class="analysis-page-message">
+                Please select a team, window size, and period, then click Analyze.
             </p>
         <?php elseif (empty($results)): ?>
             <p class="analysis-page-message">
