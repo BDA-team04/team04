@@ -241,7 +241,7 @@ require_once 'header.php';
     <p class="content">Team stats are saved only for completed games. Win/loss is calculated automatically from the runs.</p>
 </section>
 
-<section class="auth-card">
+<section class="auth-card game-form-card">
     <?php if ($errors): ?>
         <ul class="form-error">
             <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
@@ -320,7 +320,7 @@ require_once 'header.php';
         </fieldset>
 
         <button type="submit" class="btn-primary"><?= $is_edit ? 'Save Changes' : 'Add Game' ?></button>
-        <a href="game_manage.php">Cancel</a>
+        <a href="game_manage.php" class="analysis-page-reset">Cancel</a>
     </form>
 </section>
 
