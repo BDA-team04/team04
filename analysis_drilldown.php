@@ -1,6 +1,7 @@
 <?php
 // 작성자: 용연주
 // 수정: 정윤아 (지역 → 구장 → 월 단계 연결, 구장별 요약·월별 날씨 지표 추가)
+// 수정: 조혜림 (다른 분석 페이지와 디자인 통일: reset 버튼 수정, 링크 수정)
 require_once 'session.php';
 require_once 'db.php';
 
@@ -235,7 +236,7 @@ require_once 'header.php';
         <?php endif; ?>
 
         <div class="analysis-page-form">
-            <a href="analysis_rollup.php" class="analysis-page-reset">Back to Roll-up</a>
+            <a href="analysis_rollup.php" class="analysis-page-back">Back to Roll-up</a>
             <a href="analysis_drilldown.php?reset=1" class="analysis-page-reset">Reset</a>
         </div>
 
@@ -247,15 +248,19 @@ require_once 'header.php';
 
         <!-- 현재 위치: 전체 지역 › 지역 › 구장 (누르면 한 단계 위로) -->
         <p class="analysis-page-message">
-            <a href="analysis_rollup.php">All Regions</a>
+            <a class="analysis-page-link" href="analysis_rollup.php">All Regions</a>
             <?php if ($selected_city !== ''): ?>
                 &rsaquo;
                 <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>"><?= h($selected_city) ?></a>
             <?php endif; ?>
             <?php if ($selected_stadium_name !== ''): ?>
-                &rsaquo; <?= h($selected_stadium_name) ?>
+                &rsaquo;
+                <span class="analysis-page-current">
+                    <?= h($selected_stadium_name) ?>
+                </span> 
             <?php endif; ?>
         </p>
+        <br>
 
         <?php if ($selected_city === ''): ?>
 
@@ -284,7 +289,7 @@ require_once 'header.php';
                         <?php foreach ($stadium_summary as $row): ?>
                             <tr>
                                 <td>
-                                    <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;stadium_id=<?= (int)$row['stadium_id'] ?>">
+                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;stadium_id=<?= (int)$row['stadium_id'] ?>">
                                         <?= h($row['stadium_name']) ?>
                                     </a>
                                     <?= $row['is_dome'] ? ' (dome)' : '' ?>

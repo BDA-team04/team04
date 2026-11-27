@@ -361,7 +361,7 @@ body {
 /* 분석 페이지 - 필터 영역 */
 .filter-panel {
     height: auto;
-    min-height: 580px;
+    min-height: 300px;
     background: #F5F5F5;
     border: 1px solid rgba(0, 32, 99, 0.5);
     border-radius: 14px;
@@ -488,6 +488,7 @@ body {
     justify-content: center;
     line-height: 1.2;
     flex-shrink: 0;
+    text-decoration: none;
 
     width: 100%;
     height: 48px;
@@ -570,6 +571,81 @@ body {
     margin-top: 25px;
     font-size: 16px;
     color: #49454F;
+}
+
+/* Roll-up Temperature 입력창 */
+form[action="analysis_rollup.php"] .analysis-page-date-range input {
+    height: 48px;
+    padding: 0 12px;
+    border: 1px solid rgba(0, 32, 99, 0.5);
+    border-radius: 10px;
+    background: #FFFFFF;
+    font-family: inherit;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+form[action="analysis_rollup.php"] .analysis-page-date-range input:focus {
+    outline: none;
+    border-color: #002063;
+}
+
+/* 경로 링크 */
+.analysis-page-link {
+    color: #000000;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.analysis-page-link:hover {
+    color: #163E85;
+    text-decoration: underline;
+}
+
+/* Drill-down 경로 링크 */
+.analysis-page-layout:has(
+    form[action="analysis_drilldown.php"]
+) .result-panel .analysis-page-message a {
+    color: #002063;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.analysis-page-layout:has(
+    form[action="analysis_drilldown.php"]
+) .result-panel .analysis-page-message a:hover {
+    color: #163E85;
+    text-decoration: underline;
+}
+
+/* Roll-up 이동 버튼 */
+.analysis-page-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 48px;
+
+    background: #315A9A;;
+    color: #FFFFFF;
+    border: 1px solid #315A9A;
+    border-radius: 10px;
+
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.analysis-page-back:hover {
+    background: #24477D;
+    border-color: #24477D;
+}
+
+/* 현재 선택된 경기장 이름 */
+.analysis-page-current {
+    color: #002063;
+    font-weight: 500;
 }
 
 /* =================================================== */
