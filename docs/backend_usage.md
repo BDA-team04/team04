@@ -168,16 +168,17 @@ try {
 
 `game_form.php` 의 수정(UPDATE) 저장 순서는 **① 기존 기록 DELETE → ② game UPDATE → ③ 기록 2행 INSERT** 입니다.
 ②에서 실패하게 만들면 이미 실행된 ①(기록 삭제)까지 되돌아가는 것을 화면으로 보여줄 수 있습니다.
-(`sql/dev_sample.sql` 샘플 데이터 기준)
+(`sql/dbinsert.sql` 실데이터 기준)
 
-1. 로그인 → Game Data(`game_manage.php`) 에서 2026-07-14 경기 두 개를 확인
-   - #1 잠실 LG 5 : 3 두산 (completed)
-   - #2 고척 키움 2 : 4 SSG (completed)
-2. #2 의 **Edit** → 구장을 *잠실야구장*, 홈팀을 *LG 트윈스*, 원정팀을 *두산 베어스* 로 바꾸고 저장
+1. 로그인 → Game Data(`game_manage.php`) 에서 2020-05-05 경기 두 개를 확인
+   (정렬을 *Oldest first* 로 바꾸면 첫 페이지에 보임)
+   - #1 SSG랜더스필드 SSG 0 : 3 한화 (completed)
+   - #2 광주기아챔피언스필드 KIA 2 : 11 키움 (completed)
+2. #2 의 **Edit** (`game_form.php?id=2`) → 구장을 *SSG랜더스필드*, 홈팀을 *SSG*, 원정팀을 *한화* 로 바꾸고 저장
    (날짜·더블헤더 번호는 그대로 → #1 과 완전히 같은 경기가 됨)
 3. 화면에 *"The same game … already exists. Nothing was saved (rolled back)."* 오류
    - 내부: ① #2 기록 2행 DELETE 성공 → ② UPDATE 가 UNIQUE(`uq_game_identity`) 위반 → `rollback()`
-4. 목록으로 돌아가면 #2 가 **여전히 키움 2 : 4 SSG** 로 남아 있음 → ①의 삭제도 취소된 것 확인
+4. 목록으로 돌아가면 #2 가 **여전히 KIA 2 : 11 키움** 으로 남아 있음 → ①의 삭제도 취소된 것 확인
    (phpMyAdmin 에서 `SELECT * FROM team_game_stats WHERE game_id = 2;` 로 2행 그대로인 것도 보여줄 수 있음)
 
 비교용: 트랜잭션이 없었다면 ①이 이미 반영돼 #2 의 점수가 사라진(`-`) 상태로 남았을 것.
@@ -206,4 +207,5 @@ source sql/dbcreate.sql;
 source sql/dbinsert.sql;
 ```
 
-`dbinsert.sql` 이 아직 없으면 `dbcreate.sql` 실행 후 개발용 `sql/dev_sample.sql` 로 샘플 데이터를 넣어 테스트할 수 있습니다 (제출용 아님, 기존 데이터를 지우고 다시 채움).
+처음부터 다시 넣고 싶으면 `source sql/dbdrop.sql;` 로 테이블을 모두 지운 뒤 위 두 줄을 다시 실행합니다.
+`sql/dbdump.sql` 은 같은 데이터의 덤프 파일이며, DB 를 선택한 상태(`mysql -u team04 -p team04`)에서 실행합니다.
