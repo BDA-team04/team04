@@ -1,5 +1,6 @@
 <?php
 // 작성자: 용연주
+// 수정: 정윤아 (지역 → Drill-down 링크 연결, 홈팀 기준 승패·승률, 시즌 목록 DB 조회)
 require_once 'session.php';
 require_once 'db.php';
 
@@ -30,9 +31,16 @@ if (count(array_intersect($filter_keys, array_keys($_GET))) > 0) {
     $filter = array_merge($default_filter, $_GET);
 }
 
-// 연도 검증
+// 연도 검증 (DB 에 실제로 있는 시즌만 허용)
+$season_rows = db_query("
+    SELECT DISTINCT YEAR(game_date) AS season
+    FROM game
+    ORDER BY season
+");
+$seasons = array_map('strval', array_column($season_rows, 'season'));
+
 $selected_year = (string)$filter['year'];
-$allowed_years = ['', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+$allowed_years = array_merge([''], $seasons);
 
 if (!in_array($selected_year, $allowed_years, true)) {
     $selected_year = '';
@@ -190,9 +198,13 @@ $sql = "
             THEN game_stats.total_runs
         END) AS avg_runs,
 
-        SUM(game_stats.wins) AS total_wins,
-        SUM(game_stats.losses) AS total_losses,
-        SUM(game_stats.draws) AS total_draws
+        SUM(game_stats.home_wins) AS home_wins,
+        SUM(game_stats.home_losses) AS home_losses,
+        SUM(game_stats.draws) AS total_draws,
+
+        -- 홈 승률 (무승부 제외)
+        100 * SUM(game_stats.home_wins)
+            / NULLIF(SUM(game_stats.home_wins) + SUM(game_stats.home_losses), 0) AS home_win_pct
 
     FROM stadium s
 
@@ -200,23 +212,25 @@ $sql = "
         ON s.stadium_id = g.stadium_id
         $join_condition
 
+    -- 경기 1건당 1행으로 요약 (승패는 홈팀 기준: 한 경기에 W·L 이 하나씩 있어서
+    -- 양 팀을 모두 세면 지역별 승수와 패수가 항상 같아지기 때문)
     LEFT JOIN (
         SELECT
             game_id,
             SUM(runs) AS total_runs,
 
             SUM(CASE
-                WHEN result = 'W' THEN 1
+                WHEN is_home = 1 AND result = 'W' THEN 1
                 ELSE 0
-            END) AS wins,
+            END) AS home_wins,
 
             SUM(CASE
-                WHEN result = 'L' THEN 1
+                WHEN is_home = 1 AND result = 'L' THEN 1
                 ELSE 0
-            END) AS losses,
+            END) AS home_losses,
 
             SUM(CASE
-                WHEN result = 'D' THEN 1
+                WHEN is_home = 1 AND result = 'D' THEN 1
                 ELSE 0
             END) AS draws
 
@@ -258,22 +272,22 @@ require_once 'header.php';
             <select name="year" id="year">
                 <option value="">All Seasons</option>
 
-                <?php for ($year = 2020; $year <= 2026; $year++): ?>
-                    <option value="<?= $year ?>"
-                        <?= ($selected_year == (string)$year) ? 'selected' : '' ?>>
-                        <?= $year ?>
+                <?php foreach ($seasons as $year): ?>
+                    <option value="<?= h($year) ?>"
+                        <?= ($selected_year === $year) ? 'selected' : '' ?>>
+                        <?= h($year) ?>
                     </option>
-                <?php endfor; ?>
+                <?php endforeach; ?>
             </select>
 
             <!-- 기온 범위 -->
             <br>
             <label>Temperature (°C)</label>
-            <div class="temperature-inputs">
+            <div class="analysis-page-date-range">
                 <input type="number" name="min_temp"
                     step="0.1" placeholder="Min"
                     value="<?= h($min_temp) ?>">
-
+                <span>~</span>
                 <input type="number" name="max_temp"
                     step="0.1" placeholder="Max"
                     value="<?= h($max_temp) ?>">
@@ -331,6 +345,11 @@ require_once 'header.php';
     <div class="result-panel">
         <h2>Analysis Results</h2>
         <h3>Region Summary</h3>
+        <p class="analysis-page-message">
+            The last row (All Regions) is the roll-up total.
+            Click a region to drill down by stadium and month.
+            Wins and losses are counted for the home team.
+        </p>
 
         <div class="analysis-page-table-wrap">
             <table class="analysis-page-table">
@@ -340,10 +359,11 @@ require_once 'header.php';
                         <th>Completed</th>
                         <th>Cancelled</th>
                         <th>Postponed</th>
-                        <th>Avg. Runs</th>
-                        <th>Wins</th>
-                        <th>Losses</th>
+                        <th>Avg. Runs / Game</th>
+                        <th>Home Wins</th>
+                        <th>Home Losses</th>
                         <th>Draws</th>
+                        <th>Home Win %</th>
                     </tr>
                 </thead>
 
@@ -351,7 +371,14 @@ require_once 'header.php';
                     <?php foreach ($regions as $region): ?>
                         <tr>
                             <td>
-                                <?= $region['city'] === null ? 'All Regions' : h($region['city']) ?>
+                                <?php if ($region['city'] === null): ?>
+                                    <strong>All Regions</strong>
+                                <?php else: ?>
+                                    <!-- 지역을 누르면 Drill-down 페이지로 (구장 → 월별) -->
+                                    <a href="analysis_drilldown.php?city=<?= urlencode($region['city']) ?>">
+                                        <?= h($region['city']) ?>
+                                    </a>
+                                <?php endif; ?>
                             </td>
                             <td><?= h($region['completed_count']) ?></td>
                             <td><?= h($region['cancelled_count']) ?></td>
@@ -361,9 +388,14 @@ require_once 'header.php';
                                     ? number_format((float)$region['avg_runs'], 1)
                                     : '-' ?>
                             </td>
-                            <td><?= h($region['total_wins']) ?></td>
-                            <td><?= h($region['total_losses']) ?></td>
-                            <td><?= h($region['total_draws']) ?></td>
+                            <td><?= h($region['home_wins'] ?? 0) ?></td>
+                            <td><?= h($region['home_losses'] ?? 0) ?></td>
+                            <td><?= h($region['total_draws'] ?? 0) ?></td>
+                            <td>
+                                <?= $region['home_win_pct'] !== null
+                                    ? number_format((float)$region['home_win_pct'], 1) . '%'
+                                    : '-' ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

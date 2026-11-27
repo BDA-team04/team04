@@ -1,5 +1,6 @@
 <?php
 // 작성자: 용연주
+// 수정: 정윤아 (지역 → 구장 → 월 단계 연결, 구장별 요약·월별 날씨 지표 추가)
 require_once 'session.php';
 require_once 'db.php';
 
@@ -85,35 +86,76 @@ save_filter('analysis_drilldown', [
     'stadium_id' => $selected_stadium
 ]);
 
-// 월별 경기 현황
+// 경기 1건당 1행: 양 팀 득점 합계, 홈팀 승·패
+$game_stats_sql = "
+    SELECT
+        game_id,
+        SUM(runs) AS total_runs,
+        SUM(CASE WHEN is_home = 1 AND result = 'W' THEN 1 ELSE 0 END) AS home_wins,
+        SUM(CASE WHEN is_home = 1 AND result = 'L' THEN 1 ELSE 0 END) AS home_losses
+    FROM team_game_stats
+    GROUP BY game_id
+";
+
+// 1단계 아래: 선택한 지역의 구장별 현황 (지역 → 구장)
+$stadium_summary = [];
+
+if ($selected_city !== '' && $selected_stadium === '') {
+    $stadium_summary = db_query(
+        "SELECT
+            s.stadium_id,
+            s.stadium_name,
+            s.is_dome,
+            COUNT(CASE WHEN g.game_status = 'completed' THEN 1 END) AS completed_count,
+            COUNT(CASE WHEN g.game_status = 'cancelled' THEN 1 END) AS cancelled_count,
+            COUNT(CASE WHEN g.game_status = 'postponed' THEN 1 END) AS postponed_count,
+            AVG(CASE WHEN g.game_status = 'completed' THEN gs.total_runs END) AS avg_runs,
+            100 * SUM(gs.home_wins) / NULLIF(SUM(gs.home_wins) + SUM(gs.home_losses), 0) AS home_win_pct
+         FROM stadium s
+         LEFT JOIN game g ON g.stadium_id = s.stadium_id
+         LEFT JOIN ($game_stats_sql) AS gs ON gs.game_id = g.game_id
+         WHERE s.city = ?
+         GROUP BY s.stadium_id, s.stadium_name, s.is_dome
+         ORDER BY s.stadium_name",
+        's',
+        [$selected_city]
+    );
+}
+
+// 2단계 아래: 선택한 구장의 월별 현황 (구장 → 월)
 $monthly = [];
 
 if ($selected_stadium !== '') {
     $monthly = db_query(
         "SELECT
-            MONTH(game_date) AS month,
-
-            COUNT(CASE
-                WHEN game_status = 'completed' THEN 1
-            END) AS completed_count,
-
-            COUNT(CASE
-                WHEN game_status = 'cancelled' THEN 1
-            END) AS cancelled_count,
-
-            COUNT(CASE
-                WHEN game_status = 'postponed' THEN 1
-            END) AS postponed_count
-
-         FROM game
-         WHERE stadium_id = ?
-
-         GROUP BY MONTH(game_date)
+            MONTH(g.game_date) AS month,
+            COUNT(CASE WHEN g.game_status = 'completed' THEN 1 END) AS completed_count,
+            COUNT(CASE WHEN g.game_status = 'cancelled' THEN 1 END) AS cancelled_count,
+            COUNT(CASE WHEN g.game_status = 'postponed' THEN 1 END) AS postponed_count,
+            AVG(CASE WHEN g.game_status = 'completed' THEN gs.total_runs END) AS avg_runs,
+            AVG(w.avg_temp_c) AS avg_temp,
+            AVG(w.precipitation_mm) AS avg_rain
+         FROM game g
+         JOIN stadium s ON s.stadium_id = g.stadium_id
+         LEFT JOIN ($game_stats_sql) AS gs ON gs.game_id = g.game_id
+         LEFT JOIN weather w ON w.city = s.city AND w.obs_date = g.game_date
+         WHERE g.stadium_id = ?
+         GROUP BY MONTH(g.game_date)
          ORDER BY month",
         'i',
         [$selected_stadium]
     );
 }
+
+// 화면 위쪽 경로 표시용 구장 이름
+$selected_stadium_name = '';
+foreach ($stadiums as $stadium) {
+    if ((int)$stadium['stadium_id'] === $selected_stadium) {
+        $selected_stadium_name = $stadium['stadium_name'];
+    }
+}
+
+$month_names = [1 => 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // 네비게이션
 require_once 'header.php';
@@ -192,11 +234,10 @@ require_once 'header.php';
 
         <?php endif; ?>
 
-        <a href="analysis_rollup.php">Back to Roll-up</a>
-
-        <a href="analysis_drilldown.php?reset=1">
-            Reset
-        </a>
+        <div class="analysis-page-form">
+            <a href="analysis_rollup.php" class="analysis-page-reset">Back to Roll-up</a>
+            <a href="analysis_drilldown.php?reset=1" class="analysis-page-reset">Reset</a>
+        </div>
 
     </div>
 
@@ -204,21 +245,64 @@ require_once 'header.php';
     <div class="result-panel">
         <h2>Analysis Results</h2>
 
+        <!-- 현재 위치: 전체 지역 › 지역 › 구장 (누르면 한 단계 위로) -->
+        <p class="analysis-page-message">
+            <a href="analysis_rollup.php">All Regions</a>
+            <?php if ($selected_city !== ''): ?>
+                &rsaquo;
+                <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>"><?= h($selected_city) ?></a>
+            <?php endif; ?>
+            <?php if ($selected_stadium_name !== ''): ?>
+                &rsaquo; <?= h($selected_stadium_name) ?>
+            <?php endif; ?>
+        </p>
+
         <?php if ($selected_city === ''): ?>
 
             <p class="analysis-page-message">
-                Please select a region to begin.
+                Please select a region to begin, or click a region on the Roll-up page.
             </p>
 
         <?php elseif ($selected_stadium === ''): ?>
 
-            <p class="analysis-page-message">
-                Please select a stadium to view monthly analysis.
-            </p>
+            <h3>Stadium Summary: <?= h($selected_city) ?></h3>
+            <p class="analysis-page-message">Click a stadium to see its monthly results.</p>
+
+            <div class="analysis-page-table-wrap">
+                <table class="analysis-page-table">
+                    <thead>
+                        <tr>
+                            <th>Stadium</th>
+                            <th>Completed</th>
+                            <th>Cancelled</th>
+                            <th>Postponed</th>
+                            <th>Avg. Runs / Game</th>
+                            <th>Home Win %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($stadium_summary as $row): ?>
+                            <tr>
+                                <td>
+                                    <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;stadium_id=<?= (int)$row['stadium_id'] ?>">
+                                        <?= h($row['stadium_name']) ?>
+                                    </a>
+                                    <?= $row['is_dome'] ? ' (dome)' : '' ?>
+                                </td>
+                                <td><?= (int)$row['completed_count'] ?></td>
+                                <td><?= (int)$row['cancelled_count'] ?></td>
+                                <td><?= (int)$row['postponed_count'] ?></td>
+                                <td><?= $row['avg_runs'] !== null ? number_format((float)$row['avg_runs'], 1) : '-' ?></td>
+                                <td><?= $row['home_win_pct'] !== null ? number_format((float)$row['home_win_pct'], 1) . '%' : '-' ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
 
         <?php else: ?>
 
-            <h3>Monthly Game Summary</h3>
+            <h3>Monthly Game Summary: <?= h($selected_stadium_name) ?></h3>
 
             <div class="analysis-page-table-wrap">
                 <table class="analysis-page-table">
@@ -228,6 +312,9 @@ require_once 'header.php';
                             <th>Completed</th>
                             <th>Cancelled</th>
                             <th>Postponed</th>
+                            <th>Avg. Runs / Game</th>
+                            <th>Avg. Temp (°C)</th>
+                            <th>Avg. Rain (mm)</th>
                         </tr>
                     </thead>
 
@@ -235,7 +322,7 @@ require_once 'header.php';
                         <?php if (empty($monthly)): ?>
 
                             <tr>
-                                <td colspan="4">
+                                <td colspan="7">
                                     No game data available.
                                 </td>
                             </tr>
@@ -244,10 +331,13 @@ require_once 'header.php';
 
                             <?php foreach ($monthly as $row): ?>
                                 <tr>
-                                    <td><?= h($row['month']) ?>월</td>
-                                    <td><?= h($row['completed_count']) ?></td>
-                                    <td><?= h($row['cancelled_count']) ?></td>
-                                    <td><?= h($row['postponed_count']) ?></td>
+                                    <td><?= h($month_names[(int)$row['month']] ?? $row['month']) ?></td>
+                                    <td><?= (int)$row['completed_count'] ?></td>
+                                    <td><?= (int)$row['cancelled_count'] ?></td>
+                                    <td><?= (int)$row['postponed_count'] ?></td>
+                                    <td><?= $row['avg_runs'] !== null ? number_format((float)$row['avg_runs'], 1) : '-' ?></td>
+                                    <td><?= $row['avg_temp'] !== null ? number_format((float)$row['avg_temp'], 1) : '-' ?></td>
+                                    <td><?= $row['avg_rain'] !== null ? number_format((float)$row['avg_rain'], 1) : '-' ?></td>
                                 </tr>
                             <?php endforeach; ?>
 
