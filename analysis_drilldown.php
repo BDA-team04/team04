@@ -15,7 +15,8 @@ if (isset($_GET['reset'])) {
 // 기본 분석 조건
 $default_filter = [
     'city' => '',
-    'stadium_id' => ''
+    'stadium_id' => '',
+    'year' => ''
 ];
 
 // 이전에 저장한 조건
@@ -57,6 +58,15 @@ if (
     $selected_stadium = '';
 }
 
+// 연도 검증
+$selected_year = (string)$filter['year'];
+
+if ($selected_year !== '' && !preg_match('/^\d{4}$/', $selected_year)) {
+    $selected_year = '';
+}
+
+$year_param = ($selected_year === '') ? 0 : (int)$selected_year;
+
 // 지역별 경기장 목록
 $stadiums = [];
 
@@ -84,7 +94,8 @@ if (
 // 검증한 조건 세션에 저장
 save_filter('analysis_drilldown', [
     'city' => $selected_city,
-    'stadium_id' => $selected_stadium
+    'stadium_id' => $selected_stadium,
+    'year' => $selected_year
 ]);
 
 // 경기 1건당 1행: 양 팀 득점 합계, 홈팀 승·패
@@ -113,13 +124,14 @@ if ($selected_city !== '' && $selected_stadium === '') {
             AVG(CASE WHEN g.game_status = 'completed' THEN gs.total_runs END) AS avg_runs,
             100 * SUM(gs.home_wins) / NULLIF(SUM(gs.home_wins) + SUM(gs.home_losses), 0) AS home_win_pct
          FROM stadium s
-         LEFT JOIN game g ON g.stadium_id = s.stadium_id
+        LEFT JOIN game g ON g.stadium_id = s.stadium_id
+            AND (? = 0 OR YEAR(g.game_date) = ?)
          LEFT JOIN ($game_stats_sql) AS gs ON gs.game_id = g.game_id
          WHERE s.city = ?
          GROUP BY s.stadium_id, s.stadium_name, s.is_dome
          ORDER BY s.stadium_name",
-        's',
-        [$selected_city]
+        'iis',
+        [$year_param, $year_param, $selected_city]
     );
 }
 
@@ -141,10 +153,11 @@ if ($selected_stadium !== '') {
          LEFT JOIN ($game_stats_sql) AS gs ON gs.game_id = g.game_id
          LEFT JOIN weather w ON w.city = s.city AND w.obs_date = g.game_date
          WHERE g.stadium_id = ?
+             AND (? = 0 OR YEAR(g.game_date) = ?)
          GROUP BY MONTH(g.game_date)
          ORDER BY month",
-        'i',
-        [$selected_stadium]
+        'iii',
+        [$selected_stadium, $year_param, $year_param]
     );
 }
 
@@ -180,7 +193,7 @@ require_once 'header.php';
         <form method="GET"
               action="analysis_drilldown.php"
               class="analysis-page-form">
-
+            <input type="hidden" name="year" value="<?= h($selected_year) ?>">
             <!-- 지역 선택 -->
             <label for="city">Select Region</label>
 
@@ -211,6 +224,7 @@ require_once 'header.php';
                 <input type="hidden"
                        name="city"
                        value="<?= h($selected_city) ?>">
+                <input type="hidden" name="year" value="<?= h($selected_year) ?>">
 
                 <label for="stadium_id">Select Stadium</label>
 
@@ -251,7 +265,7 @@ require_once 'header.php';
             <a class="analysis-page-link" href="analysis_rollup.php">All Regions</a>
             <?php if ($selected_city !== ''): ?>
                 &rsaquo;
-                <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>"><?= h($selected_city) ?></a>
+                <a href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;year=<?= urlencode($selected_year) ?>"><?= h($selected_city) ?></a>
             <?php endif; ?>
             <?php if ($selected_stadium_name !== ''): ?>
                 &rsaquo;
@@ -289,8 +303,7 @@ require_once 'header.php';
                         <?php foreach ($stadium_summary as $row): ?>
                             <tr>
                                 <td>
-                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;stadium_id=<?= (int)$row['stadium_id'] ?>">
-                                        <?= h($row['stadium_name']) ?>
+                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($selected_city) ?>&amp;stadium_id=<?= (int)$row['stadium_id'] ?>&amp;year=<?= urlencode($selected_year) ?>">                                        <?= h($row['stadium_name']) ?>
                                     </a>
                                     <?= $row['is_dome'] ? ' (dome)' : '' ?>
                                 </td>
