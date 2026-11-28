@@ -371,7 +371,7 @@ require_once 'header.php';
                                     <strong>All Regions</strong>
                                 <?php else: ?>
                                     <!-- 지역을 누르면 Drill-down 페이지로 (구장 → 월별) -->
-                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($region['city']) ?>">
+                                    <a class="analysis-page-link" href="analysis_drilldown.php?city=<?= urlencode($region['city']) ?>&year=<?= urlencode($selected_year) ?>">
                                         <?= h($region['city']) ?>
                                     </a>
                                 <?php endif; ?>
